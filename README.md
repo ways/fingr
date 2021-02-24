@@ -23,6 +23,10 @@ All in python 2. Looks up location via a one-time imported mysql database.
 
 * One-liner
 
+## Show stoppers
+
+* Searching improvements may be dependent on changes to the library
+
 ## Techs
 
 * Python3(.8)
