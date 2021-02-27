@@ -27,6 +27,11 @@ All in python 2. Looks up location via a one-time imported mysql database.
 
 * Searching improvements may be dependent on changes to the library
 
+## Nice to have
+
+* Deny-list, for abusers
+* Random message at bottom
+
 ## Techs
 
 * Python3(.8)
