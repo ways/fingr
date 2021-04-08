@@ -35,6 +35,7 @@ All in python 2. Looks up location via a one-time imported mysql database.
 ## Techs
 
 * Python3(.8)
-* Lib python-yr seems like a good match
-* Pipenv https://pipenv.pypa.io/
+* Pipenv https://pipenv.pypa.io/ for deps control
+* geopy for location look-up via nominatim
+* metno-locationforecast as met.no API lib
 
