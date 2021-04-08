@@ -6,6 +6,7 @@ name = "pypi"
 [packages]
 python-yr = "*"
 asyncio = "*"
+redis = "*"
 
 [dev-packages]
 
