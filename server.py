@@ -43,8 +43,11 @@ def print_time ():
 def clean_input (data):
     ''' Only allow numbers, letters, and some special chars from user '''
 
+    # Change sub score to space
+    data = data.replace('_', ' ')
+
     # TODO: include all weird characters for other languages
-    SPECIAL_CHARS = ',/ øæåØÆÅé'
+    SPECIAL_CHARS = '^-,/ øæåØÆÅé'
     return ''.join(c for c in data if c in string.digits + string.ascii_letters + SPECIAL_CHARS)
 
 def resolve_location(data = "Oslo/Norway"):
@@ -67,11 +70,11 @@ def fetch_weather(lat, lon, address = ""):
 
     return forecast, updated
 
-def format_meteogram(forecast, display_name = '<location>', offset = 0, hourstep = 1, screenwidth = 80):
+def format_meteogram(forecast, display_name = '<location>', imperial = False,
+    offset = 0, hourstep = 1, screenwidth = 80):
     ''' Format a meteogram from forcast data '''
 
     output = ''
-    imperial = False
 
     # Init graph
     graph=dict()
@@ -299,17 +302,27 @@ async def handle_request(reader, writer):
     addr = writer.get_extra_info('peername')
     response = ''
     updated = None
+    imperial = False
 
     logging.info('%s - [%s] GET "%s"', addr[0], print_time(), user_input)
 
-    lat, lon, address = resolve_location(user_input)
-    if not lat:
-        logging.info('%s - [%s] NOTFOUND "%s"', addr[0], print_time(), user_input)
-        response += 'Location <%s> not found.' % user_input
+    if user_input.startswith('^'):
+        user_input = user_input[1:]
+        imperial = True
+
+    if user_input == 'help':
+        response = service_usage()
+    elif user_input == 'ping':
+        response = 'pong'
     else:
-        logging.info('%s - [%s] Resolved "%s" to "%s"', addr[0], print_time(), user_input, address)
-        weather_data, updated = fetch_weather(lat, lon, address)
-        response = format_meteogram(weather_data, address)
+        lat, lon, address = resolve_location(user_input)
+        if not lat:
+            logging.info('%s - [%s] NOTFOUND "%s"', addr[0], print_time(), user_input)
+            response += 'Location <%s> not found.' % user_input
+        else:
+            logging.info('%s - [%s] Resolved "%s" to "%s"', addr[0], print_time(), user_input, address)
+            weather_data, updated = fetch_weather(lat, lon, address)
+            response = format_meteogram(weather_data, display_name = address, imperial=imperial)
 
     writer.write(response.encode())
     logging.info("%s - [%s] Replied with %s bytes. Weatherdata: %s", addr[0], print_time(), len(response), updated)
@@ -332,6 +345,20 @@ async def main():
 def show_help():
     print ("Arguments:\n-h\tHelp\n-p\tPort number (default 7979)")
     sys.exit()
+
+def service_usage():
+    return """Weather via finger, graph.no
+
+* Code: https://github.com/ways/fingr/
+* https://nominatim.org/ is used for location lookup.
+* https://www.yr.no/ is used for weather data.
+* Hosted by Copyleft Solutions AS: https://copyleft.no/
+
+A normal weather lookup can be
+finger london@graph.no
+
+More features may appear, as transition to new version was rushed due to API changes.
+Contact: finger@falkp.no"""
 
 
 if __name__ == "__main__":

@@ -34,19 +34,18 @@ If you don't have finger available, but have some standard shell tools, try one 
         N NE SE SE SE  S  S SE SE SE SE  S SW SW  S SW SW SW SW SW  S SE Wind dir.
         3  2  2  2  2  1  1  1  0  1  1  1  1  1  2  2  2  2  2  2  2  2 Wind(mps)
 
-Legend left axis:   - Sunny   ^ Scattered   = Clouded   =V= Thunder   # Fog
-Legend right axis:  | Rain    ! Sleet       * Snow
+    Legend left axis:   - Sunny   ^ Scattered   = Clouded   =V= Thunder   # Fog
+    Legend right axis:  | Rain    ! Sleet       * Snow
 
 ## Techs
 
-* Python3(.8)
+* Python3.8
 * Pipenv https://pipenv.pypa.io/ for deps control
 * geopy for location look-up via nominatim
 * metno-locationforecast as met.no API lib
 
 ## More
 
-* First version: https://github.com/ways/pyyrascii
-* Second version, due to API changes: https://github.com/ways/fingr/
+* Previous version: https://github.com/ways/pyyrascii
 
 See legacy.txt for the transition from pyyrascii to this.

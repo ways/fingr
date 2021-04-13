@@ -1,5 +1,7 @@
 # Planning for a rewrite of finger weather service at graph.no
 
+Old API will close down 01.05.2021, so should migrate before that.
+
 ## Legacy components
 
 * finger handler (source was never published) using SocketServer
@@ -10,7 +12,7 @@
 All in python 2. Looks up location via a one-time imported mysql database.
 
 ## Important features to keep
-- [ ] Usage text
+- [x] Usage text
 - [ ] Imperial units
 - [x] Caching forecast data (required by API)
 - [ ] Caching location data
