@@ -5,6 +5,8 @@ import getopt
 import logging
 import asyncio
 import math
+from geopy.geocoders import Nominatim
+from metno_locationforecast import Place, Forecast
 
 __version__ = '2021-04'
 __url__ = 'https://github.com/ways/fingr'
@@ -14,10 +16,7 @@ cache_time = False
 input_limit = 30
 user_agent = "fingr/1.0 https://graph.no"
 
-from geopy.geocoders import Nominatim
 geolocator = Nominatim(user_agent=user_agent)
-
-from metno_locationforecast import Place, Forecast
 
 def wind_direction (deg):
     ''' Return compass direction from degrees '''
@@ -25,13 +24,13 @@ def wind_direction (deg):
 
     symbol = ''
 
-    if deg < 315 and deg > 45:
+    if 315 < deg < 45:
         symbol = ' N'
-    elif deg < 45 and deg > 135:
+    elif 45 < deg < 135:
         symbol = ' E'
-    elif deg < 135 and deg > 225:
+    elif 135 < deg < 225:
         symbol = ' S'
-    #elif deg < 225 and deg > 315:
+    #elif 225 < deg < 315:
     else:
         symbol = ' W'
 
@@ -47,7 +46,7 @@ def resolve_location(data = "Oslo/Norway"):
     '''
 
     coordinate = geolocator.geocode(data)
-    logging.info(f"Resolved: {data} to {coordinate.address}.")
+    logging.info("Resolved: %s to %s", data, coordinate.address)
     return coordinate.latitude, coordinate.longitude, coordinate.address
 
 def fetch_weather(lat, lon, address = ""):
@@ -64,7 +63,6 @@ def format_meteogram(forecast, offset = 0, hourstep = 1, screenwidth = 80):
     ''' Format a meteogram from forcast data '''
 
     output = ''
-    verbose = False
     imperial = False
 
     # Init graph
@@ -90,7 +88,9 @@ def format_meteogram(forecast, offset = 0, hourstep = 1, screenwidth = 80):
     # First iteration to collect temperature and rain max, min.
     iteration = 0
     for interval in forecast.data.intervals:
-        # variables ['air_pressure_at_sea_level', 'air_temperature', 'cloud_area_fraction', 'relative_humidity', 'wind_from_direction', 'wind_speed', 'precipitation_amount'])
+        # variables ['air_pressure_at_sea_level', 'air_temperature', 
+        # 'cloud_area_fraction', 'relative_humidity', 'wind_from_direction', 
+        # 'wind_speed', 'precipitation_amount'])
         iteration += 1
         if iteration > hourcount:
             break
@@ -168,7 +168,7 @@ def format_meteogram(forecast, offset = 0, hourstep = 1, screenwidth = 80):
         # Wind on x axis
         graph[windline] += " " + \
           (wind_direction(wind_from_direction) \
-          if 0.0 != wind_speed else " O")
+          if wind_speed != 0.0 else " O")
 
         # Wind strength on x axis
         graph[windstrline] += " " + '%2.0f' % wind_speed
@@ -178,7 +178,7 @@ def format_meteogram(forecast, offset = 0, hourstep = 1, screenwidth = 80):
         date=str(interval.start_time)[8:10] + '/' + str(interval.start_time)[5:7]
         hour=str(interval.start_time)[11:13] #2012-01-17T21:00
 
-        if '01' == hour: # Date changed
+        if hour == '01': # Date changed
             graph[timeline] = graph[timeline][:-2] + date
         else:
             graph[timeline] += spacer + hour
@@ -196,7 +196,7 @@ def format_meteogram(forecast, offset = 0, hourstep = 1, screenwidth = 80):
                 if tempingraph == temptomatch:
                     # Match symbols from https://api.met.no/weatherapi/weathericon/2.0/documentation
                     if not interval.symbol_code:
-                        graph[i] += "XXX"
+                        graph[i] += "   "
                     elif 'partlycloudy' in interval.symbol_code: #partly
                         graph[i] += "^^^"
                     elif 'cloudy' in interval.symbol_code: #clouded
@@ -286,7 +286,7 @@ async def handle_request(reader, writer):
     addr = writer.get_extra_info('peername')
     response = ''
 
-    logging.info(f"{addr!r} Received: {user_input!r}")
+    logging.info("%s Received: %s", addr, user_input)
 
     lat, lon, address = resolve_location(user_input)
     if not lat:
@@ -296,33 +296,23 @@ async def handle_request(reader, writer):
         response = format_meteogram(weather_data)
 
     writer.write(response)
-    logging.info(f"{addr!r} Sent reply")
+    logging.info("%s Sent reply", addr)
     await writer.drain()
 
-    logging.info(f"{addr!r} Closing connection")
+    logging.info("%s Closing connection", addr)
     writer.close()
 
 async def main():
-    # Add test data
-    #     r.mset({"Norge/Oslo/Oslo/Oslo": """OrderedDict([('@from', '2021-04-08T03:00:00'), ('@to', '2021-04-08T04:00:00'), ('symbol', OrderedDict([('@number', '1'), ('@numberEx', '1'), ('@name', 'Clear sky'), ('@var', '01n')])), ('precipitation', OrderedDict([('@value', '0')])), ('windDirection', OrderedDict([('@deg', '188.1'), ('@code', 'S'), ('@name', 'South')])), ('windSpeed', OrderedDict([('@mps', '1.1'), ('@name', 'Light air')])), ('temperature', OrderedDict([('@unit', 'celsius'), ('@value', '2')])), ('pressure', OrderedDict([('@unit', 'hPa'), ('@value', '1008.2')]))])
-    # OrderedDict([('@from', '2021-04-08T04:00:00'), ('@to', '2021-04-08T05:00:00'), ('symbol', OrderedDict([('@number', '1'), ('@numberEx', '1'), ('@name', 'Clear sky'), ('@var', '01n')])), ('precipitation', OrderedDict([('@value', '0')])), ('windDirection', OrderedDict([('@deg', '169.6'), ('@code', 'S'), ('@name', 'South')])), ('windSpeed', OrderedDict([('@mps', '2.0'), ('@name', 'Light breeze')])), ('temperature', OrderedDict([('@unit', 'celsius'), ('@value', '1')])), ('pressure', OrderedDict([('@unit', 'hPa'), ('@value', '1008.5')]))])
-    # OrderedDict([('@from', '2021-04-08T05:00:00'), ('@to', '2021-04-08T06:00:00'), ('symbol', OrderedDict([('@number', '2'), ('@numberEx', '2'), ('@name', 'Fair'), ('@var', '02n')])), ('precipitation', OrderedDict([('@value', '0')])), ('windDirection', OrderedDict([('@deg', '157.0'), ('@code', 'SSE'), ('@name', 'South-southeast')])), ('windSpeed', OrderedDict([('@mps', '1.5'), ('@name', 'Light air')])), ('temperature', OrderedDict([('@unit', 'celsius'), ('@value', '0')])), ('pressure', OrderedDict([('@unit', 'hPa'), ('@value', '1008.6')]))])
-    # OrderedDict([('@from', '2021-04-08T06:00:00'), ('@to', '2021-04-08T07:00:00'), ('symbol', OrderedDict([('@number', '3'), ('@numberEx', '3'), ('@name', 'Partly cloudy'), ('@var', '03n')])), ('precipitation', OrderedDict([('@value', '0')])), ('windDirection', OrderedDict([('@deg', '140.2'), ('@code', 'SE'), ('@name', 'Southeast')])), ('windSpeed', OrderedDict([('@mps', '1.7'), ('@name', 'Light breeze')])), ('temperature', OrderedDict([('@unit', 'celsius'), ('@value', '0')])), ('pressure', OrderedDict([('@unit', 'hPa'), ('@value', '1008.7')]))])
-    # OrderedDict([('@from', '2021-04-08T07:00:00'), ('@to', '2021-04-08T08:00:00'), ('symbol', OrderedDict([('@number', '4'), ('@numberEx', '4'), ('@name', 'Cloudy'), ('@var', '04')])), ('precipitation', OrderedDict([('@value', '0')])), ('windDirection', OrderedDict([('@deg', '141.7'), ('@code', 'SE'), ('@name', 'Southeast')])), ('windSpeed', OrderedDict([('@mps', '1.4'), ('@name', 'Light air')])), ('temperature', OrderedDict([('@unit', 'celsius'), ('@value', '0')])), ('pressure', OrderedDict([('@unit', 'hPa'), ('@value', '1009.0')]))])
-    # OrderedDict([('@from', '2021-04-08T08:00:00'), ('@to', '2021-04-08T09:00:00'), ('symbol', OrderedDict([('@number', '4'), ('@numberEx', '4'), ('@name', 'Cloudy'), ('@var', '04')])), ('precipitation', OrderedDict([('@value', '0')])), ('windDirection', OrderedDict([('@deg', '172.8'), ('@code', 'S'), ('@name', 'South')])), ('windSpeed', OrderedDict([('@mps', '1.3'), ('@name', 'Light air')])), ('temperature', OrderedDict([('@unit', 'celsius'), ('@value', '1')])), ('pressure', OrderedDict([('@unit', 'hPa'), ('@value', '1009.0')]))])
-    # """})
-    #print(r.get("Norge/Oslo/Oslo/Oslo"))
-
     server = await asyncio.start_server(
         handle_request, '0.0.0.0', port)
 
     addr = server.sockets[0].getsockname()
-    logging.info(f'Serving on {addr}')
+    logging.info('Serving on %s', addr)
 
     async with server:
         await server.serve_forever()
 
-def help():
+def show_help():
     print ("Arguments:\n-h\tHelp\n-p\tPort number (default 79, needs root)")
     sys.exit()
 
@@ -333,15 +323,15 @@ if __name__ == "__main__":
         options, remainder = getopt.getopt(sys.argv[1:],"hvp:")
     except getopt.GetoptError:
         print("Error, check arguments.")
-        help()
+        show_help()
 
     for opt, arg in options:
         if opt in ['-h', '--help']:
-            help()
+            show_help()
         if opt in ['-v', '--verbose']:
             logging.basicConfig(level=logging.INFO)
         if opt == '-p':
             port = arg
-            logging.info(f'Port set to {port}')
+            logging.info('Port set to %s', port)
 
     asyncio.run(main())
