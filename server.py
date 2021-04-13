@@ -5,6 +5,8 @@ import getopt
 import logging
 import asyncio
 import math
+import time
+import string
 from geopy.geocoders import Nominatim
 from metno_locationforecast import Place, Forecast
 
@@ -12,9 +14,8 @@ __version__ = '2021-04'
 __url__ = 'https://github.com/ways/fingr'
 __license__ = 'GPL License'
 port=7979
-cache_time = False
 input_limit = 30
-user_agent = "fingr/1.0 https://graph.no"
+user_agent = "fingr/%s https://graph.no" % __version__
 
 geolocator = Nominatim(user_agent=user_agent)
 
@@ -36,18 +37,24 @@ def wind_direction (deg):
 
     return symbol
 
+def print_time ():
+    return time.strftime("%Y-%m-%d %H:%M:%S %z", time.localtime(time.time()))
+
 def clean_input (data):
-    # TODO
-    return data
+    ''' Only allow numbers, letters, and some special chars from user '''
+
+    SPECIAL_CHARS = ',/ '
+    return ''.join(c for c in data if c in string.digits + string.ascii_letters + SPECIAL_CHARS)
 
 def resolve_location(data = "Oslo/Norway"):
-    ''' Get a coordinate from location name.
-        Return lat, long.
+    ''' Get coordinates from location name.
+        Return lat, long, name.
     '''
 
     coordinate = geolocator.geocode(data)
-    logging.info("Resolved: %s to %s", data, coordinate.address)
-    return coordinate.latitude, coordinate.longitude, coordinate.address
+    if coordinate:
+        return coordinate.latitude, coordinate.longitude, coordinate.address
+    return None, None, 'No location found'
 
 def fetch_weather(lat, lon, address = ""):
     ''' Get forecast data '''
@@ -59,7 +66,7 @@ def fetch_weather(lat, lon, address = ""):
 
     return forecast
 
-def format_meteogram(forecast, offset = 0, hourstep = 1, screenwidth = 80):
+def format_meteogram(forecast, display_name = '<location>', offset = 0, hourstep = 1, screenwidth = 80):
     ''' Format a meteogram from forcast data '''
 
     output = ''
@@ -187,19 +194,19 @@ def format_meteogram(forecast, offset = 0, hourstep = 1, screenwidth = 80):
         for i in range(1, tempheight): #draw temp
             try:
                 #parse out numbers to be compared
-                temptomatch = temperature
+                temptomatch = [temperature]
                 tempingraph = int(graph[i][:3].strip())
 
                 if tempstep < -1: #TODO: this should scale higher than one step
                     temptomatch.append(temptomatch[0] - 1)
 
-                if tempingraph == temptomatch:
+                if tempingraph in temptomatch:
                     # Match symbols from https://api.met.no/weatherapi/weathericon/2.0/documentation
                     if not interval.symbol_code:
                         graph[i] += "   "
                     elif 'partlycloudy' in interval.symbol_code: #partly
                         graph[i] += "^^^"
-                    elif 'cloudy' in interval.symbol_code: #clouded
+                    elif 'cloudy' in interval.symbol_code or 'rain' in interval.symbol_code: #clouded, rain
                         graph[i] += "==="
                     elif 'thunder' in interval.symbol_code: #thunder
                         graph[i] += "=V="
@@ -216,40 +223,41 @@ def format_meteogram(forecast, offset = 0, hourstep = 1, screenwidth = 80):
             except KeyError:
                 continue
 
-            # #compare rain, and print
-            # #TODO: scaling
-            # if (rain != 0) and (rain > 10-i):
-            #     if int(item['symbolnumber']) in [7,12]: #sleet
-            #         rainsymbol = "!"
-            #     elif int(item['symbolnumber']) in [8,13]: #snow
-            #         rainsymbol = "*"
-            #     else: #if int(item['symbolnumber']) in [5,6,9,10,11,14]: #rain
-            #         rainsymbol = "|"
+            #compare rain, and print
+            #TODO: scaling
+            if (rain != 0) and (rain > 10-i):
+                if 'sleet' in interval.symbol_code: #sleet
+                    rainsymbol = "!"
+                elif 'snow' in interval.symbol_code: #snow
+                    rainsymbol = "*"
+                else: #if int(item['symbolnumber']) in [5,6,9,10,11,14]: #rain
+                    rainsymbol = "|"
 
-            #     if 0 > int(item['temperature']): #rain but cold
-            #         rainsymbol = "*"
+                # if 0 > int(item['temperature']): #rain but cold
+                #     rainsymbol = "*"
 
-            #     if verbose:
-            #         print("rainmax: ", rainmax,"i",i,"rain",rain)
-            #     #if overflow, print number at top
-            #     if rain > 10 and i == 1:
-            #         rainsymbol = '%2.0f' % rain
-            #         graph[i] = graph[i][:-2] + rainsymbol
-            #     else:
-            #         #print rainmax if larger than rain.
-            #         if rainmax > rain:
-            #             try:
-            #                 graph[i-1] = graph[i-1][:-1] + "'"
-            #             except UnboundLocalError:
-            #                 print("Err2: " + str(item['symbolnumber']))
-            #             except KeyError:
-            #                 pass
+                # if verbose:
+                #     print("rainmax: ", rainmax,"i",i,"rain",rain)
 
-            #         #print rain
-            #         try:
-            #             graph[i] = graph[i][:-1] + rainsymbol
-            #         except UnboundLocalError:
-            #             print("Err: " + str(item['symbolnumber']))
+                #if overflow, print number at top
+                if rain > 10 and i == 1:
+                    rainsymbol = '%2.0f' % rain
+                    graph[i] = graph[i][:-2] + rainsymbol
+                else:
+                    #print rainmax if larger than rain.
+                    if rainmax > rain:
+                        try:
+                            graph[i-1] = graph[i-1][:-1] + "'"
+                        except UnboundLocalError:
+                            print("Err2: " + str(item['symbolnumber']))
+                        except KeyError:
+                            pass
+
+                    #print rain
+                    try:
+                        graph[i] = graph[i][:-1] + rainsymbol
+                    except UnboundLocalError:
+                        print("Err: " + str(item['symbolnumber']))
 
     #Legends
     graph[0] = " 'C" + str.rjust('Rain (mm) ', screenwidth-3)
@@ -260,7 +268,7 @@ def format_meteogram(forecast, offset = 0, hourstep = 1, screenwidth = 80):
     graph[timeline] +=    " Hour"
 
     #header
-    headline = "-= Meteogram for "
+    headline = "-= Meteogram for %s =-" % display_name
     #    headline += " for the next " + str(hourcount) + " hours"
     output += str.center(headline, screenwidth) + "\n"
 
@@ -281,39 +289,44 @@ def format_meteogram(forecast, offset = 0, hourstep = 1, screenwidth = 80):
     return output
 
 async def handle_request(reader, writer):
+    ''' Receives connections and responds. '''
+
     data = await reader.read(input_limit)
     user_input = clean_input(data.decode())
     addr = writer.get_extra_info('peername')
     response = ''
 
-    logging.info("%s Received: %s", addr, user_input)
+    logging.info('%s - [%s] GET "%s"', addr[0], print_time(), user_input)
 
     lat, lon, address = resolve_location(user_input)
     if not lat:
+        logging.info('%s - [%s] NOTFOUND "%s"', addr[0], print_time(), user_input)
         response += 'Location <%s> not found.' % user_input
     else:
+        logging.info('%s - [%s] Resolved "%s" to "%s"', addr[0], print_time(), user_input, address)
         weather_data = fetch_weather(lat, lon, address)
-        response = format_meteogram(weather_data)
+        response = format_meteogram(weather_data, address)
 
-    writer.write(response)
-    logging.info("%s Sent reply", addr)
+    writer.write(response.encode())
+    logging.info("%s - [%s] Reply %s bytes", addr[0], print_time(), len(response))
     await writer.drain()
-
-    logging.info("%s Closing connection", addr)
     writer.close()
 
 async def main():
+    ''' Start server and bind to port '''
+
+    logging.debug('%s Starting on port %s', print_time(), port)
     server = await asyncio.start_server(
         handle_request, '0.0.0.0', port)
 
     addr = server.sockets[0].getsockname()
-    logging.info('Serving on %s', addr)
+    logging.debug('%s Ready to serve on address %s:%s', print_time(), addr[0], addr[1])
 
     async with server:
         await server.serve_forever()
 
 def show_help():
-    print ("Arguments:\n-h\tHelp\n-p\tPort number (default 79, needs root)")
+    print ("Arguments:\n-h\tHelp\n-p\tPort number (default 7979)")
     sys.exit()
 
 

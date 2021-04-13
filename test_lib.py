@@ -1,7 +1,7 @@
 from metno_locationforecast import Place, Forecast
 import datetime as dt
 
-new_york = Place("Bergen/Norway", 59, 10)
+new_york = Place("Bergen/Norway", 60.3, 5.3)
 ny_forecast = Forecast(new_york, forecast_type="complete", user_agent="fingr/1.0 https://graph.no")
 ny_forecast.update()
 # print(ny_forecast)

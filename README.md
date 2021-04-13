@@ -12,13 +12,16 @@ All in python 2. Looks up location via a one-time imported mysql database.
 ## Important features to keep
 - [ ] Usage text
 - [ ] Imperial units
+- [ ] Caching forecast data (required by API)
+- [ ] Caching location data
 
 ## Important features to add/improve
 
-- [ ] Better location searching (country -> city)
+- [x] Better location searching (country -> city)
 - [ ] Feels-like
 - [ ] Better logging
 - [x] Dates if period cross days
+- [ ] Unit testing
 
 ## Features that can be dropped
 
@@ -31,6 +34,7 @@ All in python 2. Looks up location via a one-time imported mysql database.
 ## Nice to have
 
 - [ ] Deny-list, for abusers
+- [ ] Options like %, ~ and +
 - [ ] Random message at bottom
 
 ## Techs
