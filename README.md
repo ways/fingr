@@ -10,27 +10,28 @@
 All in python 2. Looks up location via a one-time imported mysql database.
 
 ## Important features to keep
+- [ ] Usage text
+- [ ] Imperial units
 
 ## Important features to add/improve
 
-* Better location searching (country -> city)
-* Feels-like
-* Proper logging
-* Dates if period cross days
-* Imperial units
+- [ ] Better location searching (country -> city)
+- [ ] Feels-like
+- [ ] Better logging
+- [x] Dates if period cross days
 
 ## Features that can be dropped
 
-* One-liner
+- [ ] One-liner
 
 ## Show stoppers
 
-* Searching improvements may be dependent on changes to the library
+- [x] Searching improvements may be dependent on changes to the library (library replaced)
 
 ## Nice to have
 
-* Deny-list, for abusers
-* Random message at bottom
+- [ ] Deny-list, for abusers
+- [ ] Random message at bottom
 
 ## Techs
 
