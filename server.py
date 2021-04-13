@@ -12,7 +12,7 @@ from metno_locationforecast import Place, Forecast
 
 __version__ = '2021-04'
 __url__ = 'https://github.com/ways/fingr'
-__license__ = 'GPL License'
+__license__ = 'GPL3'
 port=7979
 input_limit = 30
 user_agent = "fingr/%s https://graph.no" % __version__
@@ -63,9 +63,9 @@ def fetch_weather(lat, lon, address = ""):
     location = Place(address, lat, lon)
 
     forecast = Forecast(location, user_agent=user_agent)
-    forecast.update()
+    updated = forecast.update()
 
-    return forecast
+    return forecast, updated
 
 def format_meteogram(forecast, display_name = '<location>', offset = 0, hourstep = 1, screenwidth = 80):
     ''' Format a meteogram from forcast data '''
@@ -207,7 +207,9 @@ def format_meteogram(forecast, display_name = '<location>', offset = 0, hourstep
                         graph[i] += "   "
                     elif 'partlycloudy' in interval.symbol_code: #partly
                         graph[i] += "^^^"
-                    elif 'cloudy' in interval.symbol_code or 'rain' in interval.symbol_code: #clouded, rain
+                    elif 'cloudy' in interval.symbol_code \
+                        or 'rain' in interval.symbol_code \
+                        or 'snow' in interval.symbol_code: #clouded, rain
                         graph[i] += "==="
                     elif 'thunder' in interval.symbol_code: #thunder
                         graph[i] += "=V="
@@ -296,6 +298,7 @@ async def handle_request(reader, writer):
     user_input = clean_input(data.decode())
     addr = writer.get_extra_info('peername')
     response = ''
+    updated = None
 
     logging.info('%s - [%s] GET "%s"', addr[0], print_time(), user_input)
 
@@ -305,11 +308,11 @@ async def handle_request(reader, writer):
         response += 'Location <%s> not found.' % user_input
     else:
         logging.info('%s - [%s] Resolved "%s" to "%s"', addr[0], print_time(), user_input, address)
-        weather_data = fetch_weather(lat, lon, address)
+        weather_data, updated = fetch_weather(lat, lon, address)
         response = format_meteogram(weather_data, address)
 
     writer.write(response.encode())
-    logging.info("%s - [%s] Reply %s bytes", addr[0], print_time(), len(response))
+    logging.info("%s - [%s] Replied with %s bytes. Weatherdata: %s", addr[0], print_time(), len(response), updated)
     await writer.drain()
     writer.close()
 

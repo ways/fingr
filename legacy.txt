@@ -12,7 +12,7 @@ All in python 2. Looks up location via a one-time imported mysql database.
 ## Important features to keep
 - [ ] Usage text
 - [ ] Imperial units
-- [ ] Caching forecast data (required by API)
+- [x] Caching forecast data (required by API)
 - [ ] Caching location data
 
 ## Important features to add/improve
@@ -21,7 +21,7 @@ All in python 2. Looks up location via a one-time imported mysql database.
 - [ ] Feels-like
 - [x] Better logging
 - [x] Dates if period cross days
-- [ ] Unit testing
+- [x] Unit testing
 - [ ] Increase wind direction precision
 - [ ] Allow searching by coordinate
 
