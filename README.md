@@ -1,41 +1,41 @@
-# Planning for a rewrite of finger weather service at graph.no
+# Graph.no finger weather
 
-## Legacy components
+Finger server, serving weather forcast
 
-* finger handler (source was never published) using SocketServer
-* https://gitlab.com/larsfp/pyyrascii
-* https://github.com/ways/pyyrlib
-* https://github.com/ways/pyofflinefilecache
+An ascii version of Yr.no's meteogram https://www.yr.no/en/forecast/graph/1-72837/Norway/Oslo/Oslo/Oslo
 
-All in python 2. Looks up location via a one-time imported mysql database.
+## Usage
 
-## Important features to keep
-- [ ] Usage text
-- [ ] Imperial units
-- [ ] Caching forecast data (required by API)
-- [ ] Caching location data
+Finger is supported on all major platforms (Windows, OS X, Linux, FreeBSD, Android, ...). Open up your terminal (or cmd.exe on Windows).
 
-## Important features to add/improve
+If you don't have finger available, but have some standard shell tools, try one of the following:
 
-- [x] Better location searching (country -> city)
-- [ ] Feels-like
-- [ ] Better logging
-- [x] Dates if period cross days
-- [ ] Unit testing
+    echo oslo|nc graph.no 79
+    telnet graph.no 79 (and then type oslo)
 
-## Features that can be dropped
+## Example output
 
-- [ ] One-liner
+    $ finger oslo@graph.no
 
-## Show stoppers
+            -= Meteogram for norway/oslo/oslo/oslo =-                    
+    'C                                                                   Rain
+    9                                                         --------- 
+    8                                                   =-----          
+    7                                                                   
+    6                                                =--                
+    5                                             ---                   
+    4=--                                       ---                      
+    3                                                                   
+    2   ------                              ---                         
+    1         ---------               ------                            
+    0                  ---------                                        
+        21 22 23 00 01 02 03 04 05 06_07_08_09_10_11_12_13_14_15_16_17_18 Hour
+    
+        N NE SE SE SE  S  S SE SE SE SE  S SW SW  S SW SW SW SW SW  S SE Wind dir.
+        3  2  2  2  2  1  1  1  0  1  1  1  1  1  2  2  2  2  2  2  2  2 Wind(mps)
 
-- [x] Searching improvements may be dependent on changes to the library (library replaced)
-
-## Nice to have
-
-- [ ] Deny-list, for abusers
-- [ ] Options like %, ~ and +
-- [ ] Random message at bottom
+Legend left axis:   - Sunny   ^ Scattered   = Clouded   =V= Thunder   # Fog
+Legend right axis:  | Rain    ! Sleet       * Snow
 
 ## Techs
 
@@ -44,3 +44,9 @@ All in python 2. Looks up location via a one-time imported mysql database.
 * geopy for location look-up via nominatim
 * metno-locationforecast as met.no API lib
 
+## More
+
+* First version: https://github.com/ways/pyyrascii
+* Second version, due to API changes: https://github.com/ways/fingr/
+
+See legacy.txt for the transition from pyyrascii to this.

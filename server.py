@@ -43,7 +43,8 @@ def print_time ():
 def clean_input (data):
     ''' Only allow numbers, letters, and some special chars from user '''
 
-    SPECIAL_CHARS = ',/ '
+    # TODO: include all weird characters for other languages
+    SPECIAL_CHARS = ',/ øæåØÆÅé'
     return ''.join(c for c in data if c in string.digits + string.ascii_letters + SPECIAL_CHARS)
 
 def resolve_location(data = "Oslo/Norway"):
