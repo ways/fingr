@@ -26,14 +26,14 @@ def wind_direction (deg):
     symbol = ''
 
     if deg < 315 and deg > 45:
-        symbol = 'N'
+        symbol = ' N'
     elif deg < 45 and deg > 135:
-        symbol = 'E'
+        symbol = ' E'
     elif deg < 135 and deg > 225:
-        symbol = 'S'
+        symbol = ' S'
     #elif deg < 225 and deg > 315:
     else:
-        symbol = 'W'
+        symbol = ' W'
 
     return symbol
 
@@ -147,8 +147,6 @@ def format_meteogram(forecast, offset = 0, hourstep = 1, screenwidth = 80):
             rainaxis.append(' ')
 
     #draw graph elements:
-    time=[]
-
     iteration = 0
     for interval in forecast.data.intervals:
         temperature = int(interval.variables['air_temperature'].value)
@@ -177,23 +175,16 @@ def format_meteogram(forecast, offset = 0, hourstep = 1, screenwidth = 80):
 
         # Time on x axis
         spacer=' '
-        date=str(interval.start_time)[0:10]
+        date=str(interval.start_time)[8:10] + '/' + str(interval.start_time)[5:7]
         hour=str(interval.start_time)[11:13] #2012-01-17T21:00
-        graph[timeline] += spacer + hour
 
-        # Create time range
-        time.append(hour)
-
-        # Date
-        if '00' == hour:
-            graph[timeline+1] += date
+        if '01' == hour: # Date changed
+            graph[timeline] = graph[timeline][:-2] + date
         else:
-            graph[timeline+1] += '   '
-
+            graph[timeline] += spacer + hour
 
         #for each y (temp) look for matching temp, draw graph
-        for i in range(1, tempheight):
-            #draw temp
+        for i in range(1, tempheight): #draw temp
             try:
                 #parse out numbers to be compared
                 temptomatch = temperature
@@ -205,21 +196,21 @@ def format_meteogram(forecast, offset = 0, hourstep = 1, screenwidth = 80):
                 if tempingraph == temptomatch:
                     # Match symbols from https://api.met.no/weatherapi/weathericon/2.0/documentation
                     if not interval.symbol_code:
-                        graph[i] += "???"
-                    elif interval.symbol_code in ['partlycloudy']: #partly
+                        graph[i] += "XXX"
+                    elif 'partlycloudy' in interval.symbol_code: #partly
                         graph[i] += "^^^"
-                    elif interval.symbol_code in ['cloudy']: #clouded
+                    elif 'cloudy' in interval.symbol_code: #clouded
                         graph[i] += "==="
-                    elif 'thunder' in interval.symbol_code: #lightning
+                    elif 'thunder' in interval.symbol_code: #thunder
                         graph[i] += "=V="
-                    elif interval.symbol_code == ['fog']: #fog
+                    elif 'fog' in interval.symbol_code: #fog
                         graph[i] += "###"
-                    elif interval.symbol_code == ['fair']: #light clouds
+                    elif 'fair' in interval.symbol_code: #light clouds
                         graph[i] += "=--"
-                    elif interval.symbol_code in ['clearsky']: #clear
+                    elif 'clearsky' in interval.symbol_code: #clear
                         graph[i] += "---"
                     else: #Shouldn't hit this
-                        graph[i] += "???"
+                        graph[i] += interval.symbol_code
                 else:
                     graph[i] += "   "
             except KeyError:
@@ -285,7 +276,7 @@ def format_meteogram(forecast, offset = 0, hourstep = 1, screenwidth = 80):
 
     #legend
     output += "\nLegend left axis:   - Sunny   ^ Scattered   = Clouded   =V= Thunder   # Fog" +\
-           "\nLegend right axis:  | Rain    ! Sleet       * Snow\n"
+              "\nLegend right axis:  | Rain    ! Sleet       * Snow\n"
 
     return output
 
