@@ -1,3 +1,4 @@
 asyncio
 metno-locationforecast
 geopy
+redis

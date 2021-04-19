@@ -22,11 +22,11 @@ All in python 2. Looks up location via a one-time imported mysql database.
 
 - [x] Better location searching (country -> city)
 - [ ] Feels-like
-- [x] Better logging
+- [/] Better logging
 - [x] Dates if period cross days
 - [x] Unit testing
 - [ ] Increase wind direction precision
-- [ ] Allow searching by coordinate
+- [x] Allow searching by coordinate
 
 ## Features that can be dropped
 

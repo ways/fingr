@@ -38,6 +38,7 @@ def wind_direction (deg):
     return symbol
 
 def print_time ():
+    ''' Format time '''
     return time.strftime("%Y-%m-%d %H:%M:%S %z", time.localtime(time.time()))
 
 def clean_input (data):
@@ -47,13 +48,23 @@ def clean_input (data):
     data = data.replace('_', ' ')
 
     # TODO: include all weird characters for other languages
-    SPECIAL_CHARS = '^-,/ øæåØÆÅé'
+    SPECIAL_CHARS = '^-.,/ øæåØÆÅé'
     return ''.join(c for c in data if c in string.digits + string.ascii_letters + SPECIAL_CHARS)
 
 def resolve_location(data = "Oslo/Norway"):
     ''' Get coordinates from location name.
         Return lat, long, name.
     '''
+
+    # Check if coordinates
+    if ',' in data:
+        lat, lon = data.split(',')
+        try:
+            lat = float(lat)
+            lon = float(lon)
+            return lat, lon, 'coordinates %s, %s' % (lat, lon)
+        except ValueError:
+            pass
 
     coordinate = geolocator.geocode(data)
     if coordinate:
@@ -324,8 +335,6 @@ async def handle_request(reader, writer):
 
     if user_input == 'help':
         response = service_usage()
-    elif user_input == 'ping':
-        response = 'pong'
     else:
         lat, lon, address = resolve_location(user_input)
         if not lat:
@@ -355,7 +364,8 @@ async def main():
         await server.serve_forever()
 
 def show_help():
-    print ("Arguments:\n-h\tHelp\n-p\tPort number (default 7979)")
+    print ("Arguments:\n-h\tHelp\n-p\tPort number (default 7979)\n" +\
+        "-v\tVerbose")
     sys.exit()
 
 def service_usage():
@@ -365,12 +375,24 @@ def service_usage():
 * https://nominatim.org/ is used for location lookup.
 * https://www.yr.no/ is used for weather data.
 * Hosted by Copyleft Solutions AS: https://copyleft.no/
+* Contact: finger@falkp.no
 
-A normal weather lookup can be
-finger london@graph.no
+Usage:
+    finger oslo@graph.no
 
-More features may appear, as transition to new version was rushed due to API changes.
-Contact: finger@falkp.no"""
+Using coordinates:
+    finger 59.1,10,1@graph.no
+
+Using imperial units:
+    finger ^oslo@graph.no
+
+Specify another location when names crash:
+    finger "oslo, united states"@graph.no
+
+News:
+* Launched in 2012
+* 2021-05: total rewrite due to API changes. Much better location searching.New since 
+"""
 
 
 if __name__ == "__main__":
@@ -385,7 +407,7 @@ if __name__ == "__main__":
         if opt in ['-h', '--help']:
             show_help()
         if opt in ['-v', '--verbose']:
-            logging.basicConfig(level=logging.INFO)
+            logging.basicConfig(level=logging.DEBUG)
         if opt == '-p':
             port = arg
             logging.info('Port set to %s', port)
