@@ -61,7 +61,7 @@ def resolve_location(data = "Oslo/Norway"):
     return None, None, 'No location found'
 
 def fetch_weather(lat, lon, address = ""):
-    ''' Get forecast data '''
+    ''' Get forecast data using metno-locationforecast'''
 
     location = Place(address, lat, lon)
 
@@ -106,10 +106,15 @@ def format_meteogram(forecast, display_name = '<location>', imperial = False,
         if iteration > hourcount:
             break
 
+        if imperial:
+            interval.variables['air_temperature'].convert_to('fahrenheit')
         temperature = int(interval.variables['air_temperature'].value)
+
         precipitation = 0
         try:
             precipitation = math.ceil(float(interval.variables['precipitation_amount'].value))
+            if imperial:
+                precipitation = precipitation/25.4 # No convert_to for this unit in lib
         except KeyError:
             pass
 
@@ -162,10 +167,14 @@ def format_meteogram(forecast, display_name = '<location>', imperial = False,
     for interval in forecast.data.intervals:
         temperature = int(interval.variables['air_temperature'].value)
         wind_from_direction = int(interval.variables['wind_from_direction'].value)
+        if imperial:
+            interval.variables['wind_speed'].convert_to('mph')
         wind_speed = int(interval.variables['wind_speed'].value)
         precipitation = 0
         try:
             rain = math.ceil(float(interval.variables['precipitation_amount'].value))
+            if imperial:
+                rain = rain/25.4 # No convert_to for this unit in lib
         except KeyError:
             pass
 
@@ -268,9 +277,12 @@ def format_meteogram(forecast, display_name = '<location>', imperial = False,
     #Legends
     graph[0] = " 'C" + str.rjust('Rain (mm) ', screenwidth-3)
     if imperial:
-        graph[0] = " 'F" + str.rjust('Rain', screenwidth-9)
+        graph[0] = " 'F" + str.rjust('Rain (in)', screenwidth-3)
     graph[windline] +=    " Wind dir."
-    graph[windstrline] += " Wind(mps)"
+    if not imperial:
+        graph[windstrline] += " Wind(mps)"
+    else:
+        graph[windstrline] += " Wind(mph)"
     graph[timeline] +=    " Hour"
 
     #header

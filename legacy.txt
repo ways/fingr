@@ -16,6 +16,7 @@ All in python 2. Looks up location via a one-time imported mysql database.
 - [ ] Imperial units
 - [x] Caching forecast data (required by API)
 - [ ] Caching location data
+- [ ] Show time in locations timezone (currently showing in local timezone or UTC. Not sure.)
 
 ## Important features to add/improve
 
@@ -40,3 +41,4 @@ All in python 2. Looks up location via a one-time imported mysql database.
 - [ ] Deny-list, for abusers
 - [ ] Options like %, ~ and +
 - [ ] Random message at bottom
+- [ ] Make met.no lib convert precipitation unit, and push upstream.
