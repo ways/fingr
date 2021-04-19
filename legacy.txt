@@ -15,7 +15,7 @@ All in python 2. Looks up location via a one-time imported mysql database.
 - [x] Usage text
 - [x] Imperial units
 - [x] Caching forecast data (required by API)
-- [ ] Caching location data
+- [x] Caching location data
 - [ ] Show time in location's timezone (currently showing in local timezone or UTC. Not sure.)
 
 ## Important features to add/improve

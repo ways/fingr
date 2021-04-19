@@ -6,9 +6,11 @@ import logging
 import asyncio
 import math
 import time
+from datetime import timedelta
 import string
 from geopy.geocoders import Nominatim
 from metno_locationforecast import Place, Forecast
+import redis
 
 __version__ = '2021-04'
 __url__ = 'https://github.com/ways/fingr'
@@ -18,6 +20,8 @@ input_limit = 30
 user_agent = "fingr/%s https://graph.no" % __version__
 
 geolocator = Nominatim(user_agent=user_agent)
+
+r = redis.Redis()
 
 def wind_direction (deg):
     ''' Return compass direction from degrees '''
@@ -66,9 +70,33 @@ def resolve_location(data = "Oslo/Norway"):
         except ValueError:
             pass
 
-    coordinate = geolocator.geocode(data)
-    if coordinate:
-        return coordinate.latitude, coordinate.longitude, coordinate.address
+    lat = None
+    lon = None
+    address = None
+
+    # Check if in redis cache
+    cache = r.get(data)
+    if cache:
+        lat, lon, address = cache.decode("utf-8").split('|')
+        lat = float(lat)
+        lon = float(lon)
+
+    else:
+        coordinate = geolocator.geocode(data)
+        lat = coordinate.latitude
+        lon = coordinate.longitude
+        address = coordinate.address
+
+    if lat:
+        # Store to redis cache as <search>: "lat,lon,address"
+        if not cache:
+            r.setex(
+                data,
+                timedelta(days=7),
+                "|".join([str(lat), str(lon), str(address)])
+            )
+        return lat, lon, address, cache
+
     return None, None, 'No location found'
 
 def fetch_weather(lat, lon, address = ""):
@@ -336,12 +364,12 @@ async def handle_request(reader, writer):
     if user_input == 'help':
         response = service_usage()
     else:
-        lat, lon, address = resolve_location(user_input)
+        lat, lon, address, cached_location = resolve_location(user_input)
         if not lat:
             logging.info('%s - [%s] NOTFOUND "%s"', addr[0], print_time(), user_input)
             response += 'Location <%s> not found.' % user_input
         else:
-            logging.info('%s - [%s] Resolved "%s" to "%s"', addr[0], print_time(), user_input, address)
+            logging.info('%s - [%s] Resolved "%s" to "%s. Cached: %s"', addr[0], print_time(), user_input, address, True if cached_location else False)
             weather_data, updated = fetch_weather(lat, lon, address)
             response = format_meteogram(weather_data, display_name = address, imperial=imperial)
 
