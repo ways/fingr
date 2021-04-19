@@ -19,9 +19,21 @@ port=7979
 input_limit = 30
 user_agent = "fingr/%s https://graph.no" % __version__
 
-geolocator = Nominatim(user_agent=user_agent)
+def read_denylist():
+    ''' Populate list of IPs to deny service '''
 
-r = redis.Redis()
+    denylist = []
+    lines = 0
+
+    with open('deny.txt') as f:
+        for line in f:
+            lines += 1
+            if line.strip().startswith('#'):
+                continue
+            denylist.append(line.strip())
+
+    logging.info('%s Read denylist with %s lines.', print_time(), lines)
+    return denylist
 
 def wind_direction (deg):
     ''' Return compass direction from degrees '''
@@ -349,34 +361,42 @@ async def handle_request(reader, writer):
     ''' Receives connections and responds. '''
 
     data = await reader.read(input_limit)
-    user_input = clean_input(data.decode())
-    addr = writer.get_extra_info('peername')
     response = ''
     updated = None
     imperial = False
 
-    logging.info('%s - [%s] GET "%s"', addr[0], print_time(), user_input)
+    try:
+        user_input = clean_input(data.decode())
+        addr = writer.get_extra_info('peername')
 
-    if user_input.startswith('^'):
-        user_input = user_input[1:]
-        imperial = True
+        logging.info('%s - [%s] GET "%s"', addr[0], print_time(), user_input)
 
-    if user_input == 'help':
-        response = service_usage()
-    else:
-        lat, lon, address, cached_location = resolve_location(user_input)
-        if not lat:
-            logging.info('%s - [%s] NOTFOUND "%s"', addr[0], print_time(), user_input)
-            response += 'Location <%s> not found.' % user_input
+        if addr[0] in denylist:
+            logging.info('%s - [%s] BLACKLISTED "%s"', addr[0], print_time(), user_input)
+            response = 'You have been blacklisted for excessive use. Send a mail to blacklist@falkp.no to be delisted.'
+            return
+
+        if user_input.startswith('^'):
+            user_input = user_input[1:]
+            imperial = True
+
+        if user_input == 'help':
+            response = service_usage()
         else:
-            logging.info('%s - [%s] Resolved "%s" to "%s. Cached: %s"', addr[0], print_time(), user_input, address, True if cached_location else False)
-            weather_data, updated = fetch_weather(lat, lon, address)
-            response = format_meteogram(weather_data, display_name = address, imperial=imperial)
+            lat, lon, address, cached_location = resolve_location(user_input)
+            if not lat:
+                logging.info('%s - [%s] NOTFOUND "%s"', addr[0], print_time(), user_input)
+                response += 'Location <%s> not found.' % user_input
+            else:
+                logging.info('%s - [%s] Resolved "%s" to "%s. Cached: %s"', addr[0], print_time(), user_input, address, True if cached_location else False)
+                weather_data, updated = fetch_weather(lat, lon, address)
+                response = format_meteogram(weather_data, display_name = address, imperial=imperial)
 
-    writer.write(response.encode())
-    logging.info("%s - [%s] Replied with %s bytes. Weatherdata: %s", addr[0], print_time(), len(response), updated)
-    await writer.drain()
-    writer.close()
+    finally:
+        writer.write(response.encode())
+        logging.info("%s - [%s] Replied with %s bytes. Weatherdata: %s", addr[0], print_time(), len(response), updated)
+        await writer.drain()
+        writer.close()
 
 async def main():
     ''' Start server and bind to port '''
@@ -417,10 +437,17 @@ Using imperial units:
 Specify another location when names crash:
     finger "oslo, united states"@graph.no
 
+Hammering will get you blacklisted.
+
 News:
 * Launched in 2012
 * 2021-05: total rewrite due to API changes. Much better location searching.New since 
 """
+
+logging.basicConfig(level=logging.INFO)
+geolocator = Nominatim(user_agent=user_agent)
+r = redis.Redis()
+denylist = read_denylist()
 
 
 if __name__ == "__main__":
@@ -438,6 +465,6 @@ if __name__ == "__main__":
             logging.basicConfig(level=logging.DEBUG)
         if opt == '-p':
             port = arg
-            logging.info('Port set to %s', port)
+            logging.info('%s Port set to %s' % (print_time(), port))
 
     asyncio.run(main())
