@@ -1,6 +1,7 @@
 .vscode/
 deny.txt
 motd.txt
+data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
