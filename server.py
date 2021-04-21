@@ -6,11 +6,15 @@ import logging
 import asyncio
 import math
 import time
-from datetime import timedelta
+import datetime
+import pytz
+import random
 import string
 from geopy.geocoders import Nominatim
 from metno_locationforecast import Place, Forecast
 import redis
+import pysolar
+import timezonefinder
 
 __version__ = '2021-04'
 __url__ = 'https://github.com/ways/fingr'
@@ -18,39 +22,83 @@ __license__ = 'GPL3'
 port=7979
 input_limit = 30
 user_agent = "fingr/%s https://graph.no" % __version__
+weather_legend = "\nLegend left axis:   - Sunny   ^ Scattered   = Clouded   =V= Thunder   # Fog" +\
+    "\nLegend right axis:  | Rain    ! Sleet       * Snow\n"
+
+def read_motdlist():
+    ''' Random message to user '''
+
+    motdfile = 'motd.txt'
+    motdlist = []
+    lines = 0
+
+    try:
+        with open(motdfile) as f:
+            for line in f:
+                lines += 1
+                if line.strip().startswith('#'):
+                    continue
+                motdlist.append(line.strip())
+
+        logging.debug('%s Read motd file with %s lines.', print_time(), lines)
+    except FileNotFoundError as err:
+        logging.warning('Unable to read motd list, %s. Error: %s', motdfile, err)
+
+    return motdlist
+
+def random_message(messages):
+    ''' Pick a random message of the day '''
+    return '[' + messages[random.randint(0, len(messages)-1)] + ']\n'
 
 def read_denylist():
     ''' Populate list of IPs to deny service '''
 
+    denyfile = 'deny.txt'
     denylist = []
     lines = 0
 
-    with open('deny.txt') as f:
-        for line in f:
-            lines += 1
-            if line.strip().startswith('#'):
-                continue
-            denylist.append(line.strip())
+    try:
+        with open(denyfile) as f:
+            for line in f:
+                lines += 1
+                if line.strip().startswith('#'):
+                    continue
+                denylist.append(line.strip())
 
-    logging.info('%s Read denylist with %s lines.', print_time(), lines)
+        logging.debug('%s Read denylist with %s lines.', print_time(), lines)
+    except FileNotFoundError as err:
+        logging.warning('Unable to read deny list, %s. Error: %s', denyfile, err)
+
     return denylist
+
+def get_timezone(lat, lon):
+    ''' Return timezone for coordinate '''
+    return pytz.timezone(timezone_finder.timezone_at(lng=lon, lat=lat))
 
 def wind_direction (deg):
     ''' Return compass direction from degrees '''
-    # TODO: increase resolution
-
     symbol = ''
 
-    if 315 < deg < 45:
+    if 293 <= deg < 338:
+        symbol = 'NW'
+    elif 338 <= deg < 360:
         symbol = ' N'
-    elif 45 < deg < 135:
+    elif 0 <= deg < 23:
+        symbol = ' N'
+    elif 23 <= deg < 68:
+        symbol = 'NE'
+    elif 68 <= deg < 113:
         symbol = ' E'
-    elif 135 < deg < 225:
+    elif 113 <= deg < 158:
+        symbol = 'SE'
+    elif 158 <= deg < 203:
         symbol = ' S'
-    #elif 225 < deg < 315:
-    else:
+    elif 203 <= deg < 248:
+        symbol = 'SW'
+    elif 248 <= deg < 293:
         symbol = ' W'
-
+    else:
+        symbol = ' ?'
     return symbol
 
 def print_time ():
@@ -64,7 +112,7 @@ def clean_input (data):
     data = data.replace('_', ' ')
 
     # TODO: include all weird characters for other languages
-    SPECIAL_CHARS = '^-.,/ øæåØÆÅé'
+    SPECIAL_CHARS = '^-.,/~¤ øæåØÆÅéüÜÉýÝ'
     return ''.join(c for c in data if c in string.digits + string.ascii_letters + SPECIAL_CHARS)
 
 def resolve_location(data = "Oslo/Norway"):
@@ -78,7 +126,7 @@ def resolve_location(data = "Oslo/Norway"):
         try:
             lat = float(lat)
             lon = float(lon)
-            return lat, lon, 'coordinates %s, %s' % (lat, lon)
+            return lat, lon, 'coordinates %s, %s' % (lat, lon), False
         except ValueError:
             pass
 
@@ -95,21 +143,22 @@ def resolve_location(data = "Oslo/Norway"):
 
     else:
         coordinate = geolocator.geocode(data)
-        lat = coordinate.latitude
-        lon = coordinate.longitude
-        address = coordinate.address
+        if coordinate:
+            lat = coordinate.latitude
+            lon = coordinate.longitude
+            address = coordinate.address
 
     if lat:
         # Store to redis cache as <search>: "lat,lon,address"
         if not cache:
             r.setex(
                 data,
-                timedelta(days=7),
+                datetime.timedelta(days=7),
                 "|".join([str(lat), str(lon), str(address)])
             )
         return lat, lon, address, cache
 
-    return None, None, 'No location found'
+    return None, None, 'No location found', False
 
 def fetch_weather(lat, lon, address = ""):
     ''' Get forecast data using metno-locationforecast'''
@@ -121,15 +170,28 @@ def fetch_weather(lat, lon, address = ""):
 
     return forecast, updated
 
-def format_meteogram(forecast, display_name = '<location>', imperial = False,
-    offset = 0, hourstep = 1, screenwidth = 80):
+def calculate_wind_chill(temperature, wind_speed):
+    return int(13.12+(0.615*float(temperature))-(11.37*(float(wind_speed)*3.6)\
+        **0.16)+(0.3965*float(temperature))*((float(wind_speed)*3.6)**0.16))
+
+def sun_up(latitude, longitude, date):
+    ''' Return symbols showing if sun is up at a place and time '''
+    # TODO
+
+    # date = datetime.datetime(2021, 4, 20, 3, 13, 1, 130320, tzinfo=datetime.timezone.utc)
+    if 0 < pysolar.solar.get_altitude(latitude, longitude, date):
+        return '_'
+    return ' '
+
+def format_meteogram(forecast, lat, lon, timezone, display_name = '<location>', imperial = False,
+    offset = 0, hourstep = 1, screenwidth = 80, wind_chill = False):
     ''' Format a meteogram from forcast data '''
 
     output = ''
 
     # Init graph
     graph=dict()
-    tempheight = 10+1
+    tempheight = 11
     timeline = 13
     windline = 15
     windstrline = 16
@@ -150,9 +212,6 @@ def format_meteogram(forecast, display_name = '<location>', imperial = False,
     # First iteration to collect temperature and rain max, min.
     iteration = 0
     for interval in forecast.data.intervals:
-        # variables ['air_pressure_at_sea_level', 'air_temperature', 
-        # 'cloud_area_fraction', 'relative_humidity', 'wind_from_direction', 
-        # 'wind_speed', 'precipitation_amount'])
         iteration += 1
         if iteration > hourcount:
             break
@@ -160,6 +219,9 @@ def format_meteogram(forecast, display_name = '<location>', imperial = False,
         if imperial:
             interval.variables['air_temperature'].convert_to('fahrenheit')
         temperature = int(interval.variables['air_temperature'].value)
+        if wind_chill:
+            wind_speed = int(interval.variables['wind_speed'].value)
+            temperature = calculate_wind_chill(temperature, wind_speed)
 
         precipitation = 0
         try:
@@ -218,9 +280,11 @@ def format_meteogram(forecast, display_name = '<location>', imperial = False,
     for interval in forecast.data.intervals:
         temperature = int(interval.variables['air_temperature'].value)
         wind_from_direction = int(interval.variables['wind_from_direction'].value)
+        wind_speed = int(interval.variables['wind_speed'].value)
+        if wind_chill:
+            temperature = calculate_wind_chill(temperature, wind_speed)
         if imperial:
             interval.variables['wind_speed'].convert_to('mph')
-        wind_speed = int(interval.variables['wind_speed'].value)
         precipitation = 0
         try:
             rain = math.ceil(float(interval.variables['precipitation_amount'].value))
@@ -245,7 +309,9 @@ def format_meteogram(forecast, display_name = '<location>', imperial = False,
         graph[windstrline] += " " + '%2.0f' % wind_speed
 
         # Time on x axis
-        spacer=' '
+        spacer=' ' #sun_up(latitude=lat, longitude=lon, date=interval.start_time)
+        date = interval.start_time.replace(tzinfo=pytz.timezone('UTC'))
+
         date=str(interval.start_time)[8:10] + '/' + str(interval.start_time)[5:7]
         hour=str(interval.start_time)[11:13] #2012-01-17T21:00
 
@@ -314,32 +380,15 @@ def format_meteogram(forecast, display_name = '<location>', imperial = False,
                     if rainmax > rain:
                         try:
                             graph[i-1] = graph[i-1][:-1] + "'"
-                        except UnboundLocalError:
-                            print("Err2: " + str(item['symbolnumber']))
                         except KeyError:
                             pass
 
                     #print rain
-                    try:
-                        graph[i] = graph[i][:-1] + rainsymbol
-                    except UnboundLocalError:
-                        print("Err: " + str(item['symbolnumber']))
+                    graph[i] = graph[i][:-1] + rainsymbol
 
-    #Legends
-    graph[0] = " 'C" + str.rjust('Rain (mm) ', screenwidth-3)
-    if imperial:
-        graph[0] = " 'F" + str.rjust('Rain (in)', screenwidth-3)
-    graph[windline] +=    " Wind dir."
-    if not imperial:
-        graph[windstrline] += " Wind(mps)"
-    else:
-        graph[windstrline] += " Wind(mph)"
-    graph[timeline] +=    " Hour"
-
-    #header
-    headline = "-= Meteogram for %s =-" % display_name
-    #    headline += " for the next " + str(hourcount) + " hours"
-    output += str.center(headline, screenwidth) + "\n"
+    graph = print_units(graph, screenwidth, imperial, windline, windstrline, timeline)
+    output += print_meteogram_header(display_name + (' (wind chill)' if wind_chill else ''),
+        screenwidth)
 
     #add rain to graph
     for i in range(1, tempheight):
@@ -351,11 +400,30 @@ def format_meteogram(forecast, display_name = '<location>', imperial = False,
     for k in sorted(graph.keys()):
         output += graph[k] + "\n"
 
-    #legend
-    output += "\nLegend left axis:   - Sunny   ^ Scattered   = Clouded   =V= Thunder   # Fog" +\
-              "\nLegend right axis:  | Rain    ! Sleet       * Snow\n"
+    # Weather legend
+    output += weather_legend
 
     return output
+
+def print_units(graph, screenwidth, imperial, windline, windstrline, timeline):
+    ''' Add units for rain, wind, etc '''
+    graph[0] = " 'C" + str.rjust('Rain (mm) ', screenwidth-3)
+    if imperial:
+        graph[0] = " 'F" + str.rjust('Rain (in)', screenwidth-3)
+    graph[windline] +=    " Wind dir."
+    if not imperial:
+        graph[windstrline] += " Wind(m/s)"
+    else:
+        graph[windstrline] += " Wind(mph)"
+    graph[timeline] +=    " Hour"
+
+    return graph
+
+def print_meteogram_header(display_name, screenwidth):
+    ''' Return the header. '''
+
+    headline = "-= Meteogram for %s =-" % display_name
+    return str.center(headline, screenwidth) + "\n"
 
 async def handle_request(reader, writer):
     ''' Receives connections and responds. '''
@@ -368,17 +436,29 @@ async def handle_request(reader, writer):
     try:
         user_input = clean_input(data.decode())
         addr = writer.get_extra_info('peername')
+        screenwidth = 80
+        wind_chill = False
 
         logging.info('%s - [%s] GET "%s"', addr[0], print_time(), user_input)
 
+        # Deny list
         if addr[0] in denylist:
             logging.info('%s - [%s] BLACKLISTED "%s"', addr[0], print_time(), user_input)
             response = 'You have been blacklisted for excessive use. Send a mail to blacklist@falkp.no to be delisted.'
             return
 
+        # Imperial
         if user_input.startswith('^'):
             user_input = user_input[1:]
             imperial = True
+
+        if user_input.startswith('¤'):
+            user_input = user_input[1:]
+            wind_chill = True
+
+        if '~' in user_input:
+            screenwidth = int(user_input.split('~')[1])
+            user_input = user_input.split('~')[0]
 
         if user_input == 'help':
             response = service_usage()
@@ -386,11 +466,16 @@ async def handle_request(reader, writer):
             lat, lon, address, cached_location = resolve_location(user_input)
             if not lat:
                 logging.info('%s - [%s] NOTFOUND "%s"', addr[0], print_time(), user_input)
-                response += 'Location <%s> not found.' % user_input
+                response += 'Location not found. Try help' % user_input
             else:
-                logging.info('%s - [%s] Resolved "%s" to "%s. Cached: %s"', addr[0], print_time(), user_input, address, True if cached_location else False)
+                logging.info('%s - [%s] Resolved "%s" to "%s. Cached: %s"',
+                    addr[0], print_time(), user_input, address, bool(cached_location))
+                timezone = get_timezone(lat, lon)
                 weather_data, updated = fetch_weather(lat, lon, address)
-                response = format_meteogram(weather_data, display_name = address, imperial=imperial)
+                response = format_meteogram(weather_data, lat, lon, display_name = address, 
+                    imperial = imperial, screenwidth = screenwidth, wind_chill = wind_chill,
+                    timezone = timezone)
+                response += random_message(motdlist)
 
     finally:
         writer.write(response.encode())
@@ -434,6 +519,9 @@ Using coordinates:
 Using imperial units:
     finger ^oslo@graph.no
 
+Ask for wider output, longer forecast (~<screen width>):
+    finger oslo~200@graph.no
+
 Specify another location when names crash:
     finger "oslo, united states"@graph.no
 
@@ -441,14 +529,16 @@ Hammering will get you blacklisted.
 
 News:
 * Launched in 2012
-* 2021-05: total rewrite due to API changes. Much better location searching.New since 
+* 2021-05: total rewrite due to API changes. Much better location searching, proper hour-by-hour for most of the world.
 """
+
 
 logging.basicConfig(level=logging.INFO)
 geolocator = Nominatim(user_agent=user_agent)
 r = redis.Redis()
+timezone_finder = timezonefinder.TimezoneFinder()
 denylist = read_denylist()
-
+motdlist = read_motdlist()
 
 if __name__ == "__main__":
 
@@ -465,6 +555,6 @@ if __name__ == "__main__":
             logging.basicConfig(level=logging.DEBUG)
         if opt == '-p':
             port = arg
-            logging.info('%s Port set to %s' % (print_time(), port))
+            logging.debug('%s Port set to %s', print_time(), port)
 
     asyncio.run(main())

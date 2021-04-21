@@ -42,7 +42,19 @@ If you don't have finger available, but have some standard shell tools, try one 
 * Python3.8
 * Pipenv https://pipenv.pypa.io/ for deps control
 * geopy for location look-up via nominatim
-* metno-locationforecast as met.no API lib
+* metno-locationforecast as met.no API lib https://github.com/Rory-Sullivan/metno-locationforecast/
+* redis for caching location lookups.
+* pysolar for sun location https://pysolar.readthedocs.io/
+
+## Server install
+
+* use pipenv for python and dependencies.
+* Redis server, set to drop stuff when full.
+* Periodically clean old files in data/
+
+## Testing
+
+    python3 -m unittest discover -v -p test/__init__.py
 
 ## More
 

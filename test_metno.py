@@ -6,6 +6,10 @@ ny_forecast = Forecast(new_york, forecast_type="complete", user_agent="fingr/1.0
 ny_forecast.update()
 # print(ny_forecast)
 
+        # variables ['air_pressure_at_sea_level', 'air_temperature', 
+        # 'cloud_area_fraction', 'relative_humidity', 'wind_from_direction', 
+        # 'wind_speed', 'precipitation_amount'])
+
 first_interval = ny_forecast.data.intervals[0]
 print(first_interval)
 

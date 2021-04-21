@@ -9,7 +9,15 @@ class TestServerMethods(unittest.TestCase):
     def test_wind_direction(self):
         ''' Test results from wind direction '''
         symbol = server.wind_direction(123)
-        self.assertEqual (symbol, ' E')
+        self.assertEqual (symbol, 'SE')
+        symbol = server.wind_direction(0)
+        self.assertEqual (symbol, ' N')
+        symbol = server.wind_direction(290)
+        self.assertEqual (symbol, ' W')
+        symbol = server.wind_direction(171)
+        self.assertEqual (symbol, ' S')
+        symbol = server.wind_direction(333)
+        self.assertEqual (symbol, 'NW')
 
     def test_print_time(self):
         ''' Test results from print_time '''
@@ -26,6 +34,6 @@ class TestServerMethods(unittest.TestCase):
 
     def test_resolve_location(self):
         ''' Test results from resolve_location '''
-        latitude, longitude, address = server.resolve_location(data = "Oslo/Norway")
+        latitude, longitude, address, cached = server.resolve_location(data = "Oslo/Norway")
         self.assertEqual (latitude, 59.9133301)
 

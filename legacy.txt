@@ -16,17 +16,19 @@ All in python 2. Looks up location via a one-time imported mysql database.
 - [x] Imperial units
 - [x] Caching forecast data (required by API)
 - [x] Caching location data
-- [ ] Show time in location's timezone (currently showing in local timezone or UTC. Not sure.)
+- [ ] Fix timezone (now UTC?)
+- [ ] Show time in location's timezone
 
 ## Important features to add/improve
 
 - [x] Better location searching (country -> city)
-- [ ] Feels-like
-- [/] Better logging
-- [x] Dates if period cross days
+- [x] Optional wind chill
+- [x] Better logging
+- [x] Dates if period cross days (requested by a user)
 - [x] Unit testing
-- [ ] Increase wind direction precision
+- [x] Increase wind direction precision
 - [x] Allow searching by coordinate
+- [ ] Scale rain better for imperial (i.e. 0.1 in. increments instead of 1)
 
 ## Features that can be dropped
 
@@ -39,6 +41,9 @@ All in python 2. Looks up location via a one-time imported mysql database.
 ## Nice to have
 
 - [x] Deny-list, for abusers
-- [ ] Options like %, ~ and +
-- [ ] Random message at bottom
+- [x] Screenwidth ~
+- [ ] Options like % and +
+- [x] Random message at bottom
 - [ ] Make met.no lib convert precipitation unit, and push upstream.
+- [ ] Time API look-ups, to see what's slow
+- [ ] Fetch sun times, to display sun up/down like in old API
