@@ -4,6 +4,7 @@ After=network.target
 
 [Service]
 User=root
+WorkingDirectory=/tmp/
 ExecStart=/root/.local/share/virtualenvs/<your environment>/bin/python /root/fingr/server.py -p 79
 KillMode=process
 Restart=always
