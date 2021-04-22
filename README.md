@@ -61,3 +61,8 @@ If you don't have finger available, but have some standard shell tools, try one 
 * Previous version: https://github.com/ways/pyyrascii
 
 See legacy.txt for the transition from pyyrascii to this.
+
+## TODO
+
+* Merge read_denylist, read_motdlist.
+* Set default dirs for configs.

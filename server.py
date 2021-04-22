@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
+import os
 import getopt
 import logging
 import asyncio
@@ -45,7 +46,7 @@ def read_motdlist():
 
         logger.info('Read motd file with %s lines.', count)
     except FileNotFoundError as err:
-        logger.warning('Unable to read motd list, %s. Error: %s', motdfile, err)
+        logger.warning('Unable to read motd list, %s/%s. Error: %s', os.getcwd(), motdfile, err)
 
     return motdlist
 
@@ -76,7 +77,7 @@ def read_denylist():
 
         logger.info('Read denylist with %s lines.', count)
     except FileNotFoundError as err:
-        logger.warning('Unable to read deny list, %s. Error: %s', denyfile, err)
+        logger.warning('Unable to read deny list, %s/%s. Error: %s', os.getcwd(), denyfile, err)
 
     return denylist
 
