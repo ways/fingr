@@ -522,7 +522,7 @@ Usage:
     finger oslo@graph.no
 
 Using coordinates:
-    finger 59.1,10,1@graph.no
+    finger 59.1,10.1@graph.no
 
 Using imperial units:
     finger ^oslo@graph.no
