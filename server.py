@@ -183,12 +183,11 @@ def calculate_wind_chill(temperature, wind_speed):
 
 def sun_up(latitude, longitude, date):
     ''' Return symbols showing if sun is up at a place and time '''
-    # TODO
 
-    # date = datetime.datetime(2021, 4, 20, 3, 13, 1, 130320, tzinfo=datetime.timezone.utc)
+    #alt = pysolar.solar.get_altitude(latitude, longitude, date)
     if 0 < pysolar.solar.get_altitude(latitude, longitude, date):
-        return '_'
-    return ' '
+        return True
+    return False
 
 def format_meteogram(forecast, lat, lon, timezone, imperial = False,
     offset = 0, hourstep = 1, screenwidth = 80, wind_chill = False):
@@ -206,9 +205,6 @@ def format_meteogram(forecast, lat, lon, timezone, imperial = False,
     graph[timeline+1] = "    " #date line
     graph[windline] = "   " #wind
     graph[windstrline] = "   " #wind strenght
-    temphigh = -99
-    templow = 99
-    tempstep = -1
     hourcount = int((screenwidth-14)/3 + offset)
 
     # Rain in graph:
@@ -218,6 +214,9 @@ def format_meteogram(forecast, lat, lon, timezone, imperial = False,
 
     # First iteration to collect temperature and rain max, min.
     iteration = 0
+    temphigh = -99
+    templow = 99
+    tempstep = -1
     for interval in forecast.data.intervals:
         iteration += 1
         if iteration > hourcount:
@@ -316,11 +315,13 @@ def format_meteogram(forecast, lat, lon, timezone, imperial = False,
         graph[windstrline] += " " + '%2.0f' % wind_speed
 
         # Time on x axis
-        spacer=' ' #sun_up(latitude=lat, longitude=lon, date=interval.start_time)
-        #TODO date = interval.start_time.replace(tzinfo=pytz.timezone('UTC'))
-
-        date=str(interval.start_time)[8:10] + '/' + str(interval.start_time)[5:7]
-        hour=str(interval.start_time)[11:13] #2012-01-17T21:00
+        start_time = interval.start_time.replace(tzinfo=pytz.timezone('UTC')).astimezone(timezone)
+        date = start_time.strftime('%d/%m')
+        hour = start_time.strftime('%H')
+        if sun_up(latitude=lat, longitude=lon, date=start_time):
+            spacer='_'
+        else:
+            spacer=' '
 
         if hour == '01': # Date changed
             graph[timeline] = graph[timeline][:-2] + date
@@ -345,6 +346,7 @@ def format_meteogram(forecast, lat, lon, timezone, imperial = False,
                         graph[i] += "^^^"
                     elif 'cloudy' in interval.symbol_code \
                         or 'rain' in interval.symbol_code \
+                        or 'sleet' in interval.symbol_code \
                         or 'snow' in interval.symbol_code: #clouded, rain
                         graph[i] += "==="
                     elif 'thunder' in interval.symbol_code: #thunder
