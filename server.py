@@ -152,7 +152,7 @@ def resolve_location(data = "Oslo/Norway"):
         if coordinate:
             lat = coordinate.latitude
             lon = coordinate.longitude
-            address = coordinate.address
+            address = coordinate.address.decode("utf-8")
 
     if lat:
         # Store to redis cache as <search>: "lat,lon,address"
