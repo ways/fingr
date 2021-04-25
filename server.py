@@ -152,7 +152,10 @@ def resolve_location(data = "Oslo/Norway"):
         if coordinate:
             lat = coordinate.latitude
             lon = coordinate.longitude
-            address = coordinate.address.decode("utf-8")
+            try:
+                address = coordinate.address.decode("utf-8")
+            except AttributeError:
+                address = coordinate.address
 
     if lat:
         # Store to redis cache as <search>: "lat,lon,address"
