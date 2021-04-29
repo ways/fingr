@@ -499,6 +499,7 @@ async def handle_request(reader, writer):
 
                 if last_reply_file:
                     with open(last_reply_file, 'w') as f:
+                        f.write(addr[0] + " " + user_input + "\n\n")
                         f.write(response)
     finally:
         writer.write(response.encode())
