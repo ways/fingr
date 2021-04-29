@@ -25,6 +25,7 @@ input_limit = 30
 user_agent = "fingr/%s https://graph.no" % __version__
 weather_legend = "\nLegend left axis:   - Sunny   ^ Scattered   = Clouded   =V= Thunder   # Fog" +\
     "\nLegend right axis:  | Rain    ! Sleet       * Snow\n"
+last_reply_file = '/tmp/fingr'
 
 def read_motdlist():
     ''' Random message to user '''
@@ -118,7 +119,7 @@ def clean_input (data):
     data = data.replace('_', ' ')
 
     # TODO: include all weird characters for other languages
-    SPECIAL_CHARS = '^-.,/~¤ øæåØÆÅéüÜÉýÝ'
+    SPECIAL_CHARS = '^-.,:/~¤ øæåØÆÅéüÜÉýÝ'
     return ''.join(c for c in data if c in string.digits + string.ascii_letters + SPECIAL_CHARS)
 
 def resolve_location(data = "Oslo/Norway"):
@@ -451,7 +452,7 @@ async def handle_request(reader, writer):
         screenwidth = 80
         wind_chill = False
 
-        logger.info('%s GET "%s"', addr[0], user_input)
+        logger.debug('%s GET "%s"', addr[0], user_input)
 
         # Deny list
         if addr[0] in denylist:
@@ -464,6 +465,7 @@ async def handle_request(reader, writer):
             user_input = user_input[1:]
             imperial = True
 
+        # Wind chill
         if user_input.startswith('¤'):
             user_input = user_input[1:]
             wind_chill = True
@@ -472,25 +474,35 @@ async def handle_request(reader, writer):
             screenwidth = int(user_input.split('~')[1])
             user_input = user_input.split('~')[0]
 
-        if user_input == 'help':
+        if user_input.startswith('o:'):
+            logger.info('%s GET "%s"', addr[0], user_input)
+            response = "Sorry, one-liner is not implemented yet."
+
+        elif user_input == 'help' or len(user_input) == 0:
+            logger.info('%s help', addr[0])
             response = service_usage()
+
         else:
             lat, lon, address, cached_location = resolve_location(user_input)
             if not lat:
                 logger.info('%s NOTFOUND "%s"', addr[0], user_input)
                 response += 'Location not found. Try help.'
             else:
-                logger.info('%s Resolved "%s" to "%s. Cached: %s"',
-                    addr[0], user_input, address, bool(cached_location))
                 timezone = get_timezone(lat, lon)
                 weather_data, updated = fetch_weather(lat, lon, address)
+                logger.info('%s Resolved "%s" to "%s. location cached: %s. Weatherdata: %s"',
+                    addr[0], user_input, address, bool(cached_location), updated)
+
                 response = format_meteogram(weather_data, lat, lon, imperial = imperial, 
                     screenwidth = screenwidth, wind_chill = wind_chill, timezone = timezone)
                 response += random_message(motdlist)
 
+                if last_reply_file:
+                    with open(last_reply_file, 'w') as f:
+                        f.write(response)
     finally:
         writer.write(response.encode())
-        logger.info("%s Replied with %s bytes. Weatherdata: %s", addr[0], len(response), updated)
+        logger.debug("%s Replied with %s bytes. Weatherdata: %s", addr[0], len(response), updated)
         await writer.drain()
         writer.close()
 
@@ -536,8 +548,11 @@ Using imperial units:
 Ask for wider output, longer forecast (~<screen width>):
     finger oslo~200@graph.no
 
-Specify another location when names crash:
+Specify another location when names collide:
     finger "oslo, united states"@graph.no
+
+Display "wind chill" / "feels like" temperature:
+    finger ¤oslo@graph.no
 
 Hammering will get you blacklisted.
 
