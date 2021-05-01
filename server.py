@@ -17,7 +17,7 @@ import redis
 import pysolar
 import timezonefinder
 
-__version__ = '2021-04'
+__version__ = '2021-05'
 __url__ = 'https://github.com/ways/fingr'
 __license__ = 'GPL3'
 port=7979
@@ -438,6 +438,21 @@ def print_meteogram_header(display_name, screenwidth):
     headline = "-= Meteogram for %s =-" % display_name
     return str.center(headline, screenwidth) + "\n"
 
+def format_oneliner(forecast, timezone, imperial = False, offset = 0, wind_chill = False):
+    ''' Return a one-line weather forecast 
+        #TODO: remove json, respect windchill, imperial, etc.
+    '''
+
+    start_time = None
+    place = forecast.place.name
+    next6 = forecast.json['data']['properties']['timeseries'][0]['data']['next_6_hours']
+
+    for interval in forecast.data.intervals:
+        start_time = interval.start_time.replace(tzinfo=pytz.timezone('UTC')).astimezone(timezone)
+        break
+
+    return '%s %s next 6 hours: %s' % (start_time, place, next6)
+
 async def handle_request(reader, writer):
     ''' Receives connections and responds. '''
 
@@ -445,6 +460,7 @@ async def handle_request(reader, writer):
     response = ''
     updated = None
     imperial = False
+    oneliner = False
 
     try:
         user_input = clean_input(data.decode())
@@ -460,6 +476,10 @@ async def handle_request(reader, writer):
             response = 'You have been blacklisted for excessive use. Send a mail to blacklist@falkp.no to be delisted.'
             return
 
+        if user_input.startswith('o:'):
+            oneliner = True
+            user_input = user_input.replace('o:', '')
+
         # Imperial
         if user_input.startswith('^'):
             user_input = user_input[1:]
@@ -474,11 +494,7 @@ async def handle_request(reader, writer):
             screenwidth = int(user_input.split('~')[1])
             user_input = user_input.split('~')[0]
 
-        if user_input.startswith('o:'):
-            logger.info('%s GET "%s"', addr[0], user_input)
-            response = "Sorry, one-liner is not implemented yet."
-
-        elif user_input == 'help' or len(user_input) == 0:
+        if user_input == 'help' or len(user_input) == 0:
             logger.info('%s help', addr[0])
             response = service_usage()
 
@@ -490,22 +506,29 @@ async def handle_request(reader, writer):
             else:
                 timezone = get_timezone(lat, lon)
                 weather_data, updated = fetch_weather(lat, lon, address)
-                logger.info('%s Resolved "%s" to "%s. location cached: %s. Weatherdata: %s"',
-                    addr[0], user_input, address, bool(cached_location), updated)
+                logger.info('%s Resolved "%s" to "%s". location cached: %s. ' +\
+                    'Weatherdata: %s. o:%s, ^:%s, ¤:%s',
+                    addr[0], user_input, address, bool(cached_location), updated,
+                    bool(oneliner), bool(imperial), bool(wind_chill))
 
-                response = format_meteogram(weather_data, lat, lon, imperial = imperial, 
-                    screenwidth = screenwidth, wind_chill = wind_chill, timezone = timezone)
-                response += random_message(motdlist)
+                if not oneliner:
+                    response = format_meteogram(weather_data, lat, lon, imperial = imperial, 
+                        screenwidth = screenwidth, wind_chill = wind_chill, timezone = timezone)
+                    response += random_message(motdlist)
+                else:
+                    response = format_oneliner(weather_data, timezone=timezone,
+                        imperial=imperial, wind_chill=wind_chill)
 
-                if last_reply_file:
-                    with open(last_reply_file, 'w') as f:
-                        f.write(addr[0] + " " + user_input + "\n\n")
-                        f.write(response)
     finally:
         writer.write(response.encode())
         logger.debug("%s Replied with %s bytes. Weatherdata: %s", addr[0], len(response), updated)
         await writer.drain()
         writer.close()
+
+        if last_reply_file:
+            with open(last_reply_file, 'w') as f:
+                f.write(addr[0] + " " + user_input + "\n\n")
+                f.write(response)
 
 async def main():
     ''' Start server and bind to port '''
@@ -549,13 +572,16 @@ Using imperial units:
 Ask for wider output, longer forecast (~<screen width>):
     finger oslo~200@graph.no
 
-Specify another location when names collide:
+Specify another location when names conflict:
     finger "oslo, united states"@graph.no
 
 Display "wind chill" / "feels like" temperature:
     finger ¤oslo@graph.no
 
-Hammering will get you blacklisted.
+No graph, just a one-line forecast (needs improvement):
+    finger o:oslo@graph.no
+
+Hammering will get you blacklisted. Remember the data doesn't change more than once an hour.
 
 News:
 * Launched in 2012
