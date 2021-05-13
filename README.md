@@ -46,6 +46,10 @@ If you don't have finger available, but have some standard shell tools, try one 
 * redis for caching location lookups.
 * pysolar for sun location https://pysolar.readthedocs.io/
 
+# Thanks
+
+* Pull request from https://github.com/neo954
+
 ## Server install
 
 * use pipenv for python and dependencies.
