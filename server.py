@@ -149,7 +149,7 @@ def resolve_location(data = "Oslo/Norway"):
         lon = float(lon)
 
     else:
-        coordinate = geolocator.geocode(data)
+        coordinate = geolocator.geocode(data, language="en")
         if coordinate:
             lat = coordinate.latitude
             lon = coordinate.longitude
