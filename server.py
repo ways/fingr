@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import re
 import sys
 import os
 import getopt
@@ -16,6 +17,7 @@ from metno_locationforecast import Place, Forecast
 import redis
 import pysolar
 import timezonefinder
+import socket # To catch connection error
 
 __version__ = '2021-05'
 __url__ = 'https://github.com/ways/fingr'
@@ -149,7 +151,13 @@ def resolve_location(data = "Oslo/Norway"):
         lon = float(lon)
 
     else:
-        coordinate = geolocator.geocode(data, language="en")
+        coordinate = None
+        try:
+            coordinate = geolocator.geocode(data, language="en")
+        except socket.timeout as err:
+            # nominatim.openstreetmap.org down
+            print("nominatim.openstreetmap.org down. %s" % err)
+            return None, None, 'No service', False
         if coordinate:
             lat = coordinate.latitude
             lon = coordinate.longitude
@@ -501,8 +509,11 @@ async def handle_request(reader, writer):
         else:
             lat, lon, address, cached_location = resolve_location(user_input)
             if not lat:
-                logger.info('%s NOTFOUND "%s"', addr[0], user_input)
-                response += 'Location not found. Try help.'
+                if address == 'No service':
+                    response += 'Error: address service down. You can still use coordinates.'
+                else:
+                    logger.info('%s NOTFOUND "%s"', addr[0], user_input)
+                    response += 'Location not found. Try help.'
             else:
                 timezone = get_timezone(lat, lon)
                 weather_data, updated = fetch_weather(lat, lon, address)
