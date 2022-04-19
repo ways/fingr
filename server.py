@@ -19,7 +19,7 @@ import pysolar
 import timezonefinder
 import socket # To catch connection error
 
-__version__ = '2021-05'
+__version__ = '2022-04'
 __url__ = 'https://github.com/ways/fingr'
 __license__ = 'GPL3'
 port=7979
