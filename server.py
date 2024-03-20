@@ -3,7 +3,7 @@
 import re
 import sys
 import os
-import getopt
+import argparse
 import logging
 import asyncio
 import math
@@ -22,10 +22,10 @@ import socket  # To catch connection error
 __version__ = "2022-04"
 __url__ = "https://github.com/ways/fingr"
 __license__ = "GPL3"
-host = "0.0.0.0"
-port = 7979
-redis_host = "localhost"
-redis_port = "6379"
+# host = "0.0.0.0"
+# port = 7979
+# redis_host = ""
+# redis_port = ""
 input_limit = 30
 user_agent = "fingr/%s https://graph.no" % __version__
 weather_legend = (
@@ -615,25 +615,22 @@ async def handle_request(reader, writer):
                 f.write(response)
 
 
-async def main():
+async def main(args):
     """Start server and bind to port"""
 
+    print("connecting to redis host %s port %s" % (args.redis_host, args.redis_port))
+    r = redis.Redis(host=args.redis_host, port=args.redis_port)
     r.ping()
     logger.debug("Redis connected")
 
-    logger.debug("Starting on port %s", port)
-    server = await asyncio.start_server(handle_request, host, port)
+    logger.debug("Starting on port %s", args.port)
+    server = await asyncio.start_server(handle_request, args.host, args.port)
 
     addr = server.sockets[0].getsockname()
     logger.debug("Ready to serve on address %s:%s", addr[0], addr[1])
 
     async with server:
         await server.serve_forever()
-
-
-def show_help():
-    print("Arguments:\n-h\tHelp\n-p\tPort number (default 7979)\n" + "-v\tVerbose")
-    sys.exit()
 
 
 def service_usage():
@@ -680,37 +677,20 @@ logging.basicConfig(
 logger = logging.getLogger()
 
 geolocator = Nominatim(user_agent=user_agent)
-r = redis.Redis(host=redis_host, port=redis_port)
 timezone_finder = timezonefinder.TimezoneFinder()
 denylist = read_denylist()
 motdlist = read_motdlist()
 
 if __name__ == "__main__":
 
-    try:
-        options, remainder = getopt.getopt(sys.argv[1:], "hvp:", ['redis_host', 'redis_port'])
-    except getopt.GetoptError:
-        print("Error, check arguments.")
-        print(sys.argv[1:])
-        show_help()
+    parser = argparse.ArgumentParser(description='fingr')
+    # parser.add_argument('-h', '--help')
+    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true')
+    parser.add_argument('-o', '--host', dest='host', default="0.0.0.0", action='store')
+    parser.add_argument('-p', '--port', dest='port', default=7979, action='store')
+    parser.add_argument('-r', '--redis_host', dest='redis_host', default="localhost", action='store')
+    parser.add_argument('-n', '--redis_port', dest='redis_port', default=6379, action='store')
 
-    for opt, arg in options:
-        if opt in ["-h", "--help"]:
-            show_help()
-        if opt in ["-v", "--verbose"]:
-            logger.setLevel(level=logging.DEBUG)
-            logger.debug("Logging set to debug")
-        if opt == "--host":
-            host = arg
-            logger.debug("Host set to %s", host)
-        if opt == "--port":
-            port = arg
-            logger.debug("Port set to %s", port)
-        if opt == "--redis_host":
-            redis_host = arg
-            logger.debug("redis_host set to %s", redis_host)
-        if opt == "--redis_port":
-            redis_host = arg
-            logger.debug("redis_port set to %s", redis_port)
+    args = parser.parse_args()
 
-    asyncio.run(main())
+    asyncio.run(main(args))
