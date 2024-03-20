@@ -38,7 +38,9 @@ def read_useragent():
                 return line.strip()
         logger.info("Read useragent file.")
     except FileNotFoundError as err:
-        logger.warning("Unable to read useragent file. This is required by upstream API. You risk getting your IP banned.")
+        logger.warning(
+            "Unable to read useragent file. This is required by upstream API. You risk getting your IP banned."
+        )
     return "default fingr useragent"
 
 
@@ -687,19 +689,23 @@ logger = logging.getLogger()
 denylist = read_denylist()
 motdlist = read_motdlist()
 user_agent = read_useragent()
-r = None # redis.Redis()
+r = None  # redis.Redis()
 geolocator = Nominatim(user_agent=user_agent)
 timezone_finder = timezonefinder.TimezoneFinder()
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description='fingr')
+    parser = argparse.ArgumentParser(description="fingr")
     # parser.add_argument('-h', '--help')
-    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true')
-    parser.add_argument('-o', '--host', dest='host', default="0.0.0.0", action='store')
-    parser.add_argument('-p', '--port', dest='port', default=7979, action='store')
-    parser.add_argument('-r', '--redis_host', dest='redis_host', default="localhost", action='store')
-    parser.add_argument('-n', '--redis_port', dest='redis_port', default=6379, action='store')
+    parser.add_argument("-v", "--verbose", dest="verbose", action="store_true")
+    parser.add_argument("-o", "--host", dest="host", default="0.0.0.0", action="store")
+    parser.add_argument("-p", "--port", dest="port", default=7979, action="store")
+    parser.add_argument(
+        "-r", "--redis_host", dest="redis_host", default="localhost", action="store"
+    )
+    parser.add_argument(
+        "-n", "--redis_port", dest="redis_port", default=6379, action="store"
+    )
 
     args = parser.parse_args()
 
