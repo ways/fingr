@@ -8,7 +8,7 @@ FROM python:3.10.13-alpine3.19
 COPY requirements.txt /var/fingr/
 RUN python3 -m venv /var/fingr/venv && /var/fingr/venv/bin/pip install wheel \
     && /var/fingr/venv/bin/pip install -r /var/fingr/requirements.txt
-COPY server.py motd.txt* deny.txt* /var/fingr/
+COPY server.py motd.txt* deny.txt* useragent.txt* /var/fingr/
 
 WORKDIR /var/fingr/
 

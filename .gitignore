@@ -1,6 +1,7 @@
 .vscode/
 deny.txt
 motd.txt
+useragent.txt
 data/
 
 # Byte-compiled / optimized / DLL files

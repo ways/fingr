@@ -20,12 +20,26 @@ __version__ = "2024-03"
 __url__ = "https://github.com/ways/fingr"
 __license__ = "GPL3"
 input_limit = 30
-user_agent = "fingr/%s https://graph.no" % __version__
 weather_legend = (
     "\nLegend left axis:   - Sunny   ^ Scattered   = Clouded   =V= Thunder   # Fog"
     + "\nLegend right axis:  | Rain    ! Sleet       * Snow\n"
 )
 last_reply_file = "/tmp/fingr"
+
+
+def read_useragent():
+    """Met.no requires a contact address as user agent."""
+
+    uafile = "useragent.txt"
+
+    try:
+        with open(uafile) as f:
+            for line in f:
+                return line.strip()
+        logger.info("Read useragent file.")
+    except FileNotFoundError as err:
+        logger.warning("Unable to read useragent file. This is required by upstream API. You risk getting your IP banned.")
+    return "default fingr useragent"
 
 
 def read_motdlist():
@@ -670,11 +684,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger()
 
+denylist = read_denylist()
+motdlist = read_motdlist()
+user_agent = read_useragent()
 r = None # redis.Redis()
 geolocator = Nominatim(user_agent=user_agent)
 timezone_finder = timezonefinder.TimezoneFinder()
-denylist = read_denylist()
-motdlist = read_motdlist()
 
 if __name__ == "__main__":
 
