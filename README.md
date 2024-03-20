@@ -2,7 +2,7 @@
 
 Finger server, serving weather forcast
 
-An ascii version of Yr.no's meteogram https://www.yr.no/en/forecast/graph/1-72837/Norway/Oslo/Oslo/Oslo
+An ascii version of Yr.no's meteogram <https://www.yr.no/en/forecast/graph/1-72837/Norway/Oslo/Oslo/Oslo>
 
 ## Usage
 
@@ -40,15 +40,15 @@ If you don't have finger available, but have some standard shell tools, try one 
 ## Techs
 
 * Python3.8
-* Pipenv https://pipenv.pypa.io/ for deps control
+* [Pipenv](https://pipenv.pypa.io/) for deps control
 * geopy for location look-up via nominatim
-* metno-locationforecast as met.no API lib https://github.com/Rory-Sullivan/metno-locationforecast/
+* metno-locationforecast as met.no API lib <https://github.com/Rory-Sullivan/metno-locationforecast/>
 * redis for caching location lookups.
-* pysolar for sun location https://pysolar.readthedocs.io/
+* [pysolar](https://pysolar.readthedocs.io/) for sun location
 
-# Thanks
+## Thanks
 
-* Pull request from https://github.com/neo954
+* Pull request from <https://github.com/neo954>
 
 ## Server install
 
@@ -62,7 +62,7 @@ If you don't have finger available, but have some standard shell tools, try one 
 
 ## More
 
-* Previous version: https://github.com/ways/pyyrascii
+* Previous version: <https://github.com/ways/pyyrascii>
 
 See legacy.txt for the transition from pyyrascii to this.
 

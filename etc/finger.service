@@ -1,11 +1,11 @@
 [Unit]
-Description=Finger service
+Description=Fingr service
 After=network.target
 
 [Service]
-User=root
-WorkingDirectory=/tmp/
-ExecStart=/root/.local/share/virtualenvs/<your environment>/bin/python /root/fingr/server.py -p 79
+User=fingr
+WorkingDirectory=/var/fingr/
+ExecStart=/var/fingr/venv/bin/python3 /var/fingr/server.py -p 79
 KillMode=process
 Restart=always
 RestartSec=5
