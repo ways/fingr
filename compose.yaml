@@ -14,8 +14,6 @@ services:
     restart: unless-stopped
     ports:
       - '7979:7979'
-    links:
-      - "cache:6379"
     depends_on:
       - cache
 

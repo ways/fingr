@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
 
-import re
-import sys
 import os
 import argparse
 import logging
 import asyncio
 import math
-import time
 import datetime
 import pytz
 import random
@@ -19,13 +16,9 @@ import pysolar
 import timezonefinder
 import socket  # To catch connection error
 
-__version__ = "2022-04"
+__version__ = "2024-03"
 __url__ = "https://github.com/ways/fingr"
 __license__ = "GPL3"
-# host = "0.0.0.0"
-# port = 7979
-# redis_host = ""
-# redis_port = ""
 input_limit = 30
 user_agent = "fingr/%s https://graph.no" % __version__
 weather_legend = (
@@ -56,7 +49,7 @@ def read_motdlist():
         logger.info("Read motd file with %s lines.", count)
     except FileNotFoundError as err:
         logger.warning(
-            "Unable to read motd list, %s/%s. Error: %s", os.getcwd(), motdfile, err
+            "Unable to read motd list, %s/%s. Warning: %s", os.getcwd(), motdfile, err
         )
 
     return motdlist
@@ -617,6 +610,7 @@ async def handle_request(reader, writer):
 
 async def main(args):
     """Start server and bind to port"""
+    global r
 
     print("connecting to redis host %s port %s" % (args.redis_host, args.redis_port))
     r = redis.Redis(host=args.redis_host, port=args.redis_port)
@@ -676,6 +670,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger()
 
+r = None # redis.Redis()
 geolocator = Nominatim(user_agent=user_agent)
 timezone_finder = timezonefinder.TimezoneFinder()
 denylist = read_denylist()

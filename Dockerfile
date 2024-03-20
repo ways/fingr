@@ -12,8 +12,8 @@ COPY server.py motd.txt* deny.txt* /var/fingr/
 
 WORKDIR /var/fingr/
 
-#RUN useradd fingr
-#USER fingr
+RUN adduser --disabled-password fingr && mkdir /var/fingr/data && chown -R fingr /var/fingr/data
+USER fingr
 
 EXPOSE 7979
-ENTRYPOINT [ "/var/fingr/venv/bin/python3", "server.py" ]
+ENTRYPOINT [ "/var/fingr/venv/bin/python3", "server.py", "--verbose" ]
