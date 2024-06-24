@@ -138,6 +138,11 @@ def wind_direction(deg):
     return symbol
 
 
+def mps_to_beaufort(mps):
+        """Convert wind speed from metres per second to Beaufort scale."""
+        return min(round((mps / 0.836) ** (2/3)), 12)
+
+
 def clean_input(data):
     """Only allow numbers, letters, and some special chars from user"""
 
@@ -242,6 +247,7 @@ def format_meteogram(
     lon,
     timezone,
     imperial=False,
+    beaufort=False,
     offset=0,
     hourstep=1,
     screenwidth=80,
@@ -349,7 +355,9 @@ def format_meteogram(
         wind_speed = int(interval.variables["wind_speed"].value)
         if wind_chill:
             temperature = calculate_wind_chill(temperature, wind_speed)
-        if imperial:
+        if beaufort:
+            interval.variables["wind_speed"] = mps_to_beaufort(interval.variables["wind_speed"])
+        elif imperial:
             interval.variables["wind_speed"].convert_to("mph")
         precipitation = 0
         try:
@@ -459,7 +467,7 @@ def format_meteogram(
                     # print rain
                     graph[i] = graph[i][:-1] + rainsymbol
 
-    graph = print_units(graph, screenwidth, imperial, windline, windstrline, timeline)
+    graph = print_units(graph, screenwidth, imperial, beaufort, windline, windstrline, timeline)
     output += print_meteogram_header(
         forecast.place.name + (" (wind chill)" if wind_chill else ""), screenwidth
     )
@@ -480,16 +488,18 @@ def format_meteogram(
     return output
 
 
-def print_units(graph, screenwidth, imperial, windline, windstrline, timeline):
+def print_units(graph, screenwidth, imperial, beaufort, windline, windstrline, timeline):
     """Add units for rain, wind, etc"""
     graph[0] = " 'C" + str.rjust("Rain (mm) ", screenwidth - 3)
     if imperial:
         graph[0] = " 'F" + str.rjust("Rain (in)", screenwidth - 3)
     graph[windline] += " Wind dir."
-    if not imperial:
-        graph[windstrline] += " Wind(m/s)"
-    else:
+    if beaufort:
+        graph[windstrline] += " Wind(Bft)"
+    elif imperial:
         graph[windstrline] += " Wind(mph)"
+    else:
+        graph[windstrline] += " Wind(m/s)"
     graph[timeline] += " Hour"
 
     return graph
@@ -502,7 +512,7 @@ def print_meteogram_header(display_name, screenwidth):
     return str.center(headline, screenwidth) + "\n"
 
 
-def format_oneliner(forecast, timezone, imperial=False, offset=0, wind_chill=False):
+def format_oneliner(forecast, timezone, imperial=False, beaufort=False, offset=0, wind_chill=False):
     """Return a one-line weather forecast
     #TODO: remove json, respect windchill, imperial, etc.
     """
@@ -527,6 +537,7 @@ async def handle_request(reader, writer):
     response = ""
     updated = None
     imperial = False
+    beaufort = False
     oneliner = False
 
     try:
@@ -551,6 +562,11 @@ async def handle_request(reader, writer):
         if user_input.startswith("^"):
             user_input = user_input[1:]
             imperial = True
+
+        # Wind speed in the Beaufort scale
+        if user_input.startswith("£"):
+            user_input = user_input[1:]
+            beaufort = True
 
         # Wind chill
         if user_input.startswith("¤"):
@@ -588,6 +604,7 @@ async def handle_request(reader, writer):
                     updated,
                     bool(oneliner),
                     bool(imperial),
+                    bool(beaufort),
                     bool(wind_chill),
                 )
 
@@ -597,6 +614,7 @@ async def handle_request(reader, writer):
                         lat,
                         lon,
                         imperial=imperial,
+                        beaufort=beaufort,
                         screenwidth=screenwidth,
                         wind_chill=wind_chill,
                         timezone=timezone,
@@ -607,6 +625,7 @@ async def handle_request(reader, writer):
                         weather_data,
                         timezone=timezone,
                         imperial=imperial,
+                        beaufort=beaufort,
                         wind_chill=wind_chill,
                     )
 
@@ -660,6 +679,9 @@ Using coordinates:
 
 Using imperial units:
     finger ^oslo@graph.no
+
+Using the Beaufort wind scale:
+    finger £oslo@graph.no
 
 Ask for wider output, longer forecast (~<screen width>):
     finger oslo~200@graph.no
