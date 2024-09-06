@@ -39,7 +39,7 @@ If you don't have finger available, but have some standard shell tools, try one 
 
 ## Techs
 
-* Python3.8
+* Python3
 * [Pipenv](https://pipenv.pypa.io/) for deps control
 * geopy for location look-up via nominatim
 * metno-locationforecast as met.no API lib <https://github.com/Rory-Sullivan/metno-locationforecast/>
@@ -48,9 +48,13 @@ If you don't have finger available, but have some standard shell tools, try one 
 
 ## Thanks
 
-* Pull request from <https://github.com/neo954>
+Contributions from:
+* <https://github.com/neo954>
+* <https://github.com/sotpapathe>
 
 ## Server install
+
+User docker compose or:
 
 * use pipenv for python and dependencies.
 * Redis server, set to drop stuff when full.
@@ -58,7 +62,8 @@ If you don't have finger available, but have some standard shell tools, try one 
 
 ## Testing
 
-    python3 -m unittest discover -v -p test/__init__.py
+    - python3 -m unittest discover -v -p test/__init__.py
+    - Run a local redis for development and testing: `docker run -it --rm -p 6379:6379 redis`
 
 ## More
 
