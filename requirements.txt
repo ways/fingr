@@ -1,5 +1,5 @@
 asyncio
-metno-locationforecast
+metno-locationforecast>=1.2
 geopy
 redis
 pysolar
