@@ -138,11 +138,6 @@ def wind_direction(deg):
     return symbol
 
 
-def mps_to_beaufort(mps):
-        """Convert wind speed from metres per second to Beaufort scale."""
-        return min(round((mps / 0.836) ** (2/3)), 12)
-
-
 def clean_input(data):
     """Only allow numbers, letters, and some special chars from user"""
 
@@ -356,7 +351,7 @@ def format_meteogram(
         if wind_chill:
             temperature = calculate_wind_chill(temperature, wind_speed)
         if beaufort:
-            interval.variables["wind_speed"] = mps_to_beaufort(interval.variables["wind_speed"])
+            interval.variables["wind_speed"].convert_to("beaufort")
         elif imperial:
             interval.variables["wind_speed"].convert_to("mph")
         precipitation = 0
