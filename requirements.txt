@@ -1,7 +1,7 @@
-asyncio
+asyncio~=3.4.0
 metno-locationforecast>=1.2
-geopy
-redis
-pysolar
-timezonefinder
-pytz
+geopy~=2.4.0
+redis~=5.0.0
+pysolar==0.11
+timezonefinder~=6.5.0
+pytz==2024.1
