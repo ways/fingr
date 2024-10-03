@@ -36,9 +36,10 @@ def read_useragent():
             for line in f:
                 return line.strip()
         logger.info("Read useragent file <%s>", uafile)
-    except FileNotFoundError as err:
+    except FileNotFoundError:
         logger.warning(
-            "Unable to read useragent file <%s>. This is required by upstream API. You risk getting your IP banned.", uafile
+            "Unable to read useragent file <%s>. This is required by upstream API. You risk getting your IP banned.",
+            uafile,
         )
     return "default fingr useragent"
 
@@ -103,7 +104,7 @@ def read_denylist():
 
 
 def get_timezone(lat, lon):
-    """Return timezone for coordinate"""
+    """Return timezone for coordinate."""
     return pytz.timezone(timezone_finder.timezone_at(lng=lon, lat=lat))
 
 
