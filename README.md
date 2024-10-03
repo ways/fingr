@@ -6,12 +6,14 @@ An ascii version of Yr.no's meteogram <https://www.yr.no/en/forecast/graph/1-728
 
 ## Usage
 
-Finger is supported on all major platforms (Windows, OS X, Linux, FreeBSD, Android, ...). Open up your terminal (or cmd.exe on Windows).
+If you just want to use the service, type: `finger oslo@graph.no` (replace oslo with your city). Finger is supported on all major platforms (Windows, MacOS, Linux, FreeBSD, Android, ...).
 
 If you don't have finger available, but have some standard shell tools, try one of the following:
 
     echo oslo|nc graph.no 79
     telnet graph.no 79 (and then type oslo)
+
+If you want to run the server yourself, read on below.
 
 ## Example output
 
@@ -39,8 +41,7 @@ If you don't have finger available, but have some standard shell tools, try one 
 
 ## Techs
 
-* Python3
-* [Pipenv](https://pipenv.pypa.io/) for deps control
+* Python
 * geopy for location look-up via nominatim
 * metno-locationforecast as met.no API lib <https://github.com/Rory-Sullivan/metno-locationforecast/>
 * redis for caching location lookups.
@@ -52,18 +53,16 @@ Contributions from:
 * <https://github.com/neo954>
 * <https://github.com/sotpapathe>
 
-## Server install
+## Server install or running locally
 
-User docker compose or:
+User docker compose:
 
-* use pipenv for python and dependencies.
-* Redis server, set to drop stuff when full.
-* Periodically clean old files in data/
+* `docker compose up`
 
 ## Testing
 
-    - python3 -m unittest discover -v -p test/__init__.py
-    - Run a local redis for development and testing: `docker run -it --rm -p 6379:6379 redis`
+    - create a venv and install tox
+    - Run `tox`
 
 ## More
 
