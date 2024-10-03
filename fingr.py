@@ -7,7 +7,7 @@ import asyncio
 import math
 import datetime
 import pytz
-import random
+import secrets
 import string
 from geopy.geocoders import Nominatim
 from metno_locationforecast import Place, Forecast
@@ -24,10 +24,10 @@ weather_legend = (
     "\nLegend left axis:   - Sunny   ^ Scattered   = Clouded   =V= Thunder   # Fog"
     + "\nLegend right axis:  | Rain    ! Sleet       * Snow\n"
 )
-last_reply_file = "/tmp/fingr"
+last_reply_file = "/tmp/fingr"  # nosec B108
 
 
-def read_useragent():
+def read_useragent() -> str:
     """Met.no requires a contact address as user agent."""
     uafile = "useragent.txt"
 
@@ -44,7 +44,7 @@ def read_useragent():
     return "default fingr useragent"
 
 
-def read_motdlist():
+def read_motdlist() -> list:
     """Random message to user."""
     motdfile = "motd.txt"
     motdlist = []
@@ -70,14 +70,14 @@ def read_motdlist():
     return motdlist
 
 
-def random_message(messages):
+def random_message(messages) -> str:
     """Pick a random message of the day."""
     if 0 == len(messages):
         return ""
-    return "[" + messages[random.randint(0, len(messages) - 1)] + "]\n"
+    return "[" + messages[secrets.randbelow(0, len(messages) - 1)] + "]\n"
 
 
-def read_denylist():
+def read_denylist() -> list:
     """Populate list of IPs to deny service."""
     denyfile = "deny.txt"
     denylist = []
@@ -103,7 +103,7 @@ def read_denylist():
     return denylist
 
 
-def get_timezone(lat, lon):
+def get_timezone(lat, lon) -> str:
     """Return timezone for coordinate."""
     return pytz.timezone(timezone_finder.timezone_at(lng=lon, lat=lat))
 
@@ -626,7 +626,7 @@ async def handle_request(reader, writer):
         writer.close()
 
         if last_reply_file:
-            with open(last_reply_file, "w") as f:
+            with open(last_reply_file, mode="w", encoding="utf-8") as f:
                 f.write(addr[0] + " " + user_input + "\n\n")
                 f.write(response)
 
@@ -707,7 +707,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="fingr")
     # parser.add_argument('-h', '--help')
     parser.add_argument("-v", "--verbose", dest="verbose", action="store_true")
-    parser.add_argument("-o", "--host", dest="host", default="0.0.0.0", action="store")
+    parser.add_argument("-o", "--host", dest="host", default="127.0.0.1", action="store")
     parser.add_argument("-p", "--port", dest="port", default=7979, action="store")
     parser.add_argument(
         "-r", "--redis_host", dest="redis_host", default="localhost", action="store"
