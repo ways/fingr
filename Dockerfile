@@ -16,4 +16,4 @@ RUN adduser --disabled-password fingr && mkdir /var/fingr/data && chown -R fingr
 USER fingr
 
 EXPOSE 7979
-ENTRYPOINT [ "/var/fingr/venv/bin/python3", "fingr.py", "--verbose" ]
+ENTRYPOINT [ "/var/fingr/venv/bin/python3", "fingr.py", "--verbose", "--host", "0.0.0.0" ]
