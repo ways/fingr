@@ -2,3 +2,5 @@ bandit
 mypy
 tox
 prospector
+black
+types-pytz
