@@ -15,6 +15,7 @@ import redis
 import pysolar
 import timezonefinder
 import socket  # To catch connection error
+from typing import Tuple, Union, Optional
 
 __version__ = "2024-10"
 __url__ = "https://github.com/ways/fingr"
@@ -70,11 +71,11 @@ def read_motdlist() -> list:
     return motdlist
 
 
-def random_message(messages) -> str:
+def random_message(messages: list) -> str:
     """Pick a random message of the day."""
     if 0 == len(messages):
         return ""
-    return "[" + messages[secrets.randbelow(0, len(messages) - 1)] + "]\n"
+    return "[" + messages[secrets.randbelow(len(messages) - 1)] + "]\n"
 
 
 def read_denylist() -> list:
@@ -103,12 +104,12 @@ def read_denylist() -> list:
     return denylist
 
 
-def get_timezone(lat, lon) -> str:
+def get_timezone(lat: float, lon: float) -> pytz.BaseTzInfo:
     """Return timezone for coordinate."""
     return pytz.timezone(timezone_finder.timezone_at(lng=lon, lat=lat))
 
 
-def wind_direction(deg):
+def wind_direction(deg: int) -> str:
     """Return compass direction from degrees."""
     symbol = ""
 
@@ -135,7 +136,7 @@ def wind_direction(deg):
     return symbol
 
 
-def clean_input(data):
+def clean_input(data: str) -> str:
     """Only allow numbers, letters, and some special chars from user."""
     # Change sub score to space
     data = data.replace("_", " ")
@@ -147,7 +148,7 @@ def clean_input(data):
     )
 
 
-def resolve_location(data="Oslo/Norway"):
+def resolve_location(data="Oslo/Norway") -> Tuple[float | None, float | None, str, bool]:
     """Get coordinates from location name. Return lat, long, name."""
     cache = None
 
@@ -157,7 +158,7 @@ def resolve_location(data="Oslo/Norway"):
         try:
             lat = float(lat)
             lon = float(lon)
-            return lat, lon, "coordinates %s, %s" % (lat, lon), False
+            return lat, lon, f"coordinates {lat}, {lon}", False
         except ValueError:
             pass
 
@@ -202,7 +203,7 @@ def resolve_location(data="Oslo/Norway"):
     return None, None, "No location found", False
 
 
-def fetch_weather(lat, lon, address=""):
+def fetch_weather(lat: float, lon: float, address:str = ""):
     """Get forecast data using metno-locationforecast."""
     location = Place(address, lat, lon)
     forecast = Forecast(location, user_agent=user_agent)
@@ -212,7 +213,7 @@ def fetch_weather(lat, lon, address=""):
     return forecast, updated
 
 
-def calculate_wind_chill(temperature, wind_speed):
+def calculate_wind_chill(temperature: float, wind_speed: float):
     return int(
         13.12
         + (0.615 * float(temperature))
@@ -221,9 +222,8 @@ def calculate_wind_chill(temperature, wind_speed):
     )
 
 
-def sun_up(latitude, longitude, date):
+def sun_up(latitude: float, longitude: float, date: datetime.datetime) -> bool:
     """Return symbols showing if sun is up at a place and time."""
-    # alt = pysolar.solar.get_altitude(latitude, longitude, date)
     if 0 < pysolar.solar.get_altitude(latitude, longitude, date):
         return True
     return False
