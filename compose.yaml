@@ -1,5 +1,5 @@
 services:
-  cache:
+  redis:
     image: redis
     restart: unless-stopped
     ports:
@@ -10,12 +10,16 @@ services:
 
   fingr:
     image: fingr:latest
-    command: ["--verbose", "--redis_host", "cache"]
+    command: ["--verbose", "--redis_host", "redis"]
     restart: unless-stopped
     ports:
-      - '7979:7979'
+      # - '7979:7979'
+      - published: 7979
+        target: 7979
+        protocol: tcp
+        mode: host
     depends_on:
-      - cache
+      - redis
 
 volumes:
   cache:
