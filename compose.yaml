@@ -18,6 +18,11 @@ services:
         target: 7979
         protocol: tcp
         mode: host
+    volumes:
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 100M
     depends_on:
       - redis
 
