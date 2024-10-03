@@ -16,7 +16,7 @@ import pysolar
 import timezonefinder
 import socket  # To catch connection error
 
-__version__ = "2024-03"
+__version__ = "2024-10"
 __url__ = "https://github.com/ways/fingr"
 __license__ = "GPL3"
 input_limit = 30
@@ -29,30 +29,28 @@ last_reply_file = "/tmp/fingr"
 
 def read_useragent():
     """Met.no requires a contact address as user agent."""
-
     uafile = "useragent.txt"
 
     try:
-        with open(uafile) as f:
+        with open(uafile, mode="r", encoding="utf-8") as f:
             for line in f:
                 return line.strip()
-        logger.info("Read useragent file.")
+        logger.info("Read useragent file <%s>", uafile)
     except FileNotFoundError as err:
         logger.warning(
-            "Unable to read useragent file. This is required by upstream API. You risk getting your IP banned."
+            "Unable to read useragent file <%s>. This is required by upstream API. You risk getting your IP banned.", uafile
         )
     return "default fingr useragent"
 
 
 def read_motdlist():
-    """Random message to user"""
-
+    """Random message to user."""
     motdfile = "motd.txt"
     motdlist = []
     count = 0
 
     try:
-        with open(motdfile) as f:
+        with open(motdfile, mode="r", encoding="utf-8") as f:
             for line in f:
                 count += 1
                 line = line.strip()
@@ -62,32 +60,30 @@ def read_motdlist():
                     continue
                 motdlist.append(line.strip())
 
-        logger.info("Read motd file with %s lines.", count)
+        logger.info("Read motd file with <%s> lines.", count)
     except FileNotFoundError as err:
         logger.warning(
-            "Unable to read motd list, %s/%s. Warning: %s", os.getcwd(), motdfile, err
+            "Unable to read motd list, <%s/%s>. Warning: %s", os.getcwd(), motdfile, err
         )
 
     return motdlist
 
 
 def random_message(messages):
-    """Pick a random message of the day"""
-
+    """Pick a random message of the day."""
     if 0 == len(messages):
         return ""
     return "[" + messages[random.randint(0, len(messages) - 1)] + "]\n"
 
 
 def read_denylist():
-    """Populate list of IPs to deny service"""
-
+    """Populate list of IPs to deny service."""
     denyfile = "deny.txt"
     denylist = []
     count = 0
 
     try:
-        with open(denyfile) as f:
+        with open(denyfile, mode="r", encoding="utf-8") as f:
             for line in f:
                 count += 1
                 line = line.strip()
@@ -100,7 +96,7 @@ def read_denylist():
         logger.info("Read denylist with %s lines.", count)
     except FileNotFoundError as err:
         logger.warning(
-            "Unable to read deny list, %s/%s. Warning: %s", os.getcwd(), denyfile, err
+            "Unable to read deny list, <%s/%s>. Warning: %s", os.getcwd(), denyfile, err
         )
 
     return denylist
@@ -112,7 +108,7 @@ def get_timezone(lat, lon):
 
 
 def wind_direction(deg):
-    """Return compass direction from degrees"""
+    """Return compass direction from degrees."""
     symbol = ""
 
     if 293 <= deg < 338:
@@ -139,8 +135,7 @@ def wind_direction(deg):
 
 
 def clean_input(data):
-    """Only allow numbers, letters, and some special chars from user"""
-
+    """Only allow numbers, letters, and some special chars from user."""
     # Change sub score to space
     data = data.replace("_", " ")
 
@@ -152,9 +147,8 @@ def clean_input(data):
 
 
 def resolve_location(data="Oslo/Norway"):
-    """Get coordinates from location name.
-    Return lat, long, name.
-    """
+    """Get coordinates from location name. Return lat, long, name."""
+    cache = None
 
     # Check if coordinates
     if "," in data:
@@ -171,7 +165,8 @@ def resolve_location(data="Oslo/Norway"):
     address = None
 
     # Check if in redis cache
-    cache = r.get(data)
+    if r is not None:
+        cache = r.get(data)
     if cache:
         lat, lon, address = cache.decode("utf-8").split("|")
         lat = float(lat)
@@ -195,7 +190,7 @@ def resolve_location(data="Oslo/Norway"):
 
     if lat:
         # Store to redis cache as <search>: "lat,lon,address"
-        if not cache:
+        if cache is not None and not cache:
             r.setex(
                 data,
                 datetime.timedelta(days=7),
@@ -207,10 +202,8 @@ def resolve_location(data="Oslo/Norway"):
 
 
 def fetch_weather(lat, lon, address=""):
-    """Get forecast data using metno-locationforecast"""
-
+    """Get forecast data using metno-locationforecast."""
     location = Place(address, lat, lon)
-
     forecast = Forecast(location, user_agent=user_agent)
     updated = forecast.update()
     if forecast.json["status_code"] != 200:
@@ -228,8 +221,7 @@ def calculate_wind_chill(temperature, wind_speed):
 
 
 def sun_up(latitude, longitude, date):
-    """Return symbols showing if sun is up at a place and time"""
-
+    """Return symbols showing if sun is up at a place and time."""
     # alt = pysolar.solar.get_altitude(latitude, longitude, date)
     if 0 < pysolar.solar.get_altitude(latitude, longitude, date):
         return True
@@ -248,8 +240,7 @@ def format_meteogram(
     screenwidth=80,
     wind_chill=False,
 ):
-    """Format a meteogram from forcast data"""
-
+    """Format a meteogram from forcast data."""
     output = ""
 
     # Init graph
@@ -462,7 +453,9 @@ def format_meteogram(
                     # print rain
                     graph[i] = graph[i][:-1] + rainsymbol
 
-    graph = print_units(graph, screenwidth, imperial, beaufort, windline, windstrline, timeline)
+    graph = print_units(
+        graph, screenwidth, imperial, beaufort, windline, windstrline, timeline
+    )
     output += print_meteogram_header(
         forecast.place.name + (" (wind chill)" if wind_chill else ""), screenwidth
     )
@@ -483,8 +476,10 @@ def format_meteogram(
     return output
 
 
-def print_units(graph, screenwidth, imperial, beaufort, windline, windstrline, timeline):
-    """Add units for rain, wind, etc"""
+def print_units(
+    graph, screenwidth, imperial, beaufort, windline, windstrline, timeline
+):
+    """Add units for rain, wind, etc."""
     graph[0] = " 'C" + str.rjust("Rain (mm) ", screenwidth - 3)
     if imperial:
         graph[0] = " 'F" + str.rjust("Rain (in)", screenwidth - 3)
@@ -502,16 +497,14 @@ def print_units(graph, screenwidth, imperial, beaufort, windline, windstrline, t
 
 def print_meteogram_header(display_name, screenwidth):
     """Return the header."""
-
     headline = "-= Meteogram for %s =-" % display_name
     return str.center(headline, screenwidth) + "\n"
 
 
-def format_oneliner(forecast, timezone, imperial=False, beaufort=False, offset=0, wind_chill=False):
-    """Return a one-line weather forecast
-    #TODO: remove json, respect windchill, imperial, etc.
-    """
-
+def format_oneliner(
+    forecast, timezone, imperial=False, beaufort=False, offset=0, wind_chill=False
+):
+    """Return a one-line weather forecast. TODO: remove json, respect windchill, imperial, etc."""
     start_time = None
     place = forecast.place.name
     next6 = forecast.json["data"]["properties"]["timeseries"][0]["data"]["next_6_hours"]
@@ -527,7 +520,6 @@ def format_oneliner(forecast, timezone, imperial=False, beaufort=False, offset=0
 
 async def handle_request(reader, writer):
     """Receives connections and responds."""
-
     data = await reader.read(input_limit)
     response = ""
     updated = None
@@ -591,7 +583,7 @@ async def handle_request(reader, writer):
                 weather_data, updated = fetch_weather(lat, lon, address)
                 logger.info(
                     '%s Resolved "%s" to "%s". location cached: %s. '
-                    + "Weatherdata: %s. o:%s, ^:%s, ¤:%s",
+                    + "Weatherdata: %s. o:%s, ^:%s, £:%s, ¤:%s",
                     addr[0],
                     user_input,
                     address,
@@ -639,10 +631,10 @@ async def handle_request(reader, writer):
 
 
 async def main(args):
-    """Start server and bind to port"""
+    """Start server and bind to port."""
     global r
 
-    print("connecting to redis host %s port %s" % (args.redis_host, args.redis_port))
+    print("Connecting to redis host %s port %s" % (args.redis_host, args.redis_port))
     r = redis.Redis(host=args.redis_host, port=args.redis_port)
     r.ping()
     logger.debug("Redis connected")
@@ -711,7 +703,6 @@ geolocator = Nominatim(user_agent=user_agent)
 timezone_finder = timezonefinder.TimezoneFinder()
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(description="fingr")
     # parser.add_argument('-h', '--help')
     parser.add_argument("-v", "--verbose", dest="verbose", action="store_true")
