@@ -2,22 +2,21 @@ services:
   redis:
     image: redis
     restart: unless-stopped
-    ports:
-      - '6379:6379'
     command: redis-server --save 20 1 --loglevel warning
     volumes: 
       - cache:/data
 
   fingr:
     image: fingr:latest
+    build: .
     command: ["--verbose", "--redis_host", "redis"]
     restart: unless-stopped
     ports:
-      # - '7979:7979'
-      - published: 7979
-        target: 7979
-        protocol: tcp
-        mode: host
+      - '7979:7979'
+      # - published: 7979
+      #   target: 7979
+      #   protocol: tcp
+      #   mode: host
     volumes:
       - type: tmpfs
         target: /tmp
