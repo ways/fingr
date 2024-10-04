@@ -4,6 +4,9 @@ import unittest
 import datetime
 import pytz
 import fingr
+from threading import Thread
+from fakeredis import TcpFakeServer
+import redis
 
 verbose = True
 
@@ -33,12 +36,19 @@ class TestServerMethods(unittest.TestCase):
 
     def test_resolve_location(self):
         """Test results from resolve_location"""
+        server_address = ("127.0.0.1", 16379)
+        server = TcpFakeServer(server_address)
+        t = Thread(target=server.serve_forever, daemon=True)
+        t.start()
+
+        r = redis.Redis(host=server_address[0], port=server_address[1])
+
         latitude, longitude, address, cached = fingr.resolve_location(
-            data="Oslo/Norway"
+            r, data="Oslo/Norway"
         )
         self.assertEqual(latitude, 59.9133301)
         self.assertEqual(longitude, 10.7389701)
-        self.assertEqual(address, 'Oslo, Norway')
+        self.assertEqual(address, "Oslo, Norway")
 
     def test_random_message(self):
         msglist = ["one", "two", "three"]
@@ -52,17 +62,18 @@ class TestServerMethods(unittest.TestCase):
                 break
 
         if verbose:
-            print ("Count", counts)
+            print("Count", counts)
         self.assertIn(msg1.strip().replace("[", "").replace("]", ""), msglist)
 
     def test_get_timezone(self):
-        tz = fingr.get_timezone(lat = 59, lon = 11)
+        tz = fingr.get_timezone(lat=59, lon=11)
         self.assertEqual(tz.zone, "Europe/Oslo")
 
     def test_sun_up(self):
         dt = datetime.datetime.fromtimestamp(1727987676, tz=pytz.timezone("UTC"))
-        test = fingr.sun_up(latitude = 59, longitude = 11, date = dt)
+        test = fingr.sun_up(latitude=59, longitude=11, date=dt)
         self.assertFalse(test)
+
 
 if __name__ == "__main__":
     unittest.main()
