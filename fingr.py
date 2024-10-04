@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import sys
 import argparse
 import logging
 import asyncio
@@ -15,7 +16,7 @@ import redis
 import pysolar
 import timezonefinder
 import socket  # To catch connection error
-from typing import Tuple, Union, Optional
+from typing import Tuple, Optional
 
 __version__ = "2024-10"
 __url__ = "https://github.com/ways/fingr"
@@ -148,7 +149,10 @@ def clean_input(data: str) -> str:
     )
 
 
-def resolve_location(data="Oslo/Norway") -> Tuple[float | None, float | None, str, bool]:
+def resolve_location(
+    redis_client: redis.client,
+    data="Oslo/Norway",
+) -> Tuple[float | None, float | None, str, bool]:
     """Get coordinates from location name. Return lat, long, name."""
     cache = None
 
@@ -167,8 +171,8 @@ def resolve_location(data="Oslo/Norway") -> Tuple[float | None, float | None, st
     address = None
 
     # Check if in redis cache
-    if r is not None:
-        cache = r.get(data)
+    if redis_client is not None:
+        cache = redis_client.get(data)
     if cache:
         lat, lon, address = cache.decode("utf-8").split("|")
         lat = float(lat)
@@ -192,8 +196,8 @@ def resolve_location(data="Oslo/Norway") -> Tuple[float | None, float | None, st
 
     if lat:
         # Store to redis cache as <search>: "lat,lon,address"
-        if cache is not None and not cache:
-            r.setex(
+        if not cache:
+            redis_client.setex(
                 data,
                 datetime.timedelta(days=7),
                 "|".join([str(lat), str(lon), str(address)]),
@@ -203,7 +207,7 @@ def resolve_location(data="Oslo/Norway") -> Tuple[float | None, float | None, st
     return None, None, "No location found", False
 
 
-def fetch_weather(lat: float, lon: float, address:str = ""):
+def fetch_weather(lat: float, lon: float, address: str = ""):
     """Get forecast data using metno-locationforecast."""
     location = Place(address, lat, lon)
     forecast = Forecast(location, user_agent=user_agent)
@@ -570,7 +574,7 @@ async def handle_request(reader, writer):
             response = service_usage()
 
         else:
-            lat, lon, address, cached_location = resolve_location(user_input)
+            lat, lon, address, cached_location = resolve_location(r, user_input)
             if not lat:
                 if address == "No service":
                     response += (
@@ -635,16 +639,24 @@ async def main(args):
     """Start server and bind to port."""
     global r
 
-    print("Connecting to redis host %s port %s" % (args.redis_host, args.redis_port))
+    logger.info(
+        "Connecting to redis host %s port %s" % (args.redis_host, args.redis_port)
+    )
     r = redis.Redis(host=args.redis_host, port=args.redis_port)
-    r.ping()
-    logger.debug("Redis connected")
+    try:
+        r.ping()
+    except redis.exceptions.ConnectionError:
+        logger.error(
+            "Unable to connect to redis at <%s>:<%s>", args.redis_host, args.redis_port
+        )
+        sys.exit(1)
+    logger.info("Redis connected")
 
-    logger.debug("Starting on port %s", args.port)
+    logger.info("Starting on port %s", args.port)
     server = await asyncio.start_server(handle_request, args.host, args.port)
 
     addr = server.sockets[0].getsockname()
-    logger.debug("Ready to serve on address %s:%s", addr[0], addr[1])
+    logger.info("Ready to serve on address %s:%s", addr[0], addr[1])
 
     async with server:
         await server.serve_forever()
@@ -707,7 +719,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="fingr")
     # parser.add_argument('-h', '--help')
     parser.add_argument("-v", "--verbose", dest="verbose", action="store_true")
-    parser.add_argument("-o", "--host", dest="host", default="127.0.0.1", action="store")
+    parser.add_argument(
+        "-o", "--host", dest="host", default="127.0.0.1", action="store"
+    )
     parser.add_argument("-p", "--port", dest="port", default=7979, action="store")
     parser.add_argument(
         "-r", "--redis_host", dest="redis_host", default="localhost", action="store"
