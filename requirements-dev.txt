@@ -4,3 +4,4 @@ tox
 prospector
 black
 types-pytz
+fakeredis
