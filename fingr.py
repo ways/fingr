@@ -143,7 +143,7 @@ def clean_input(data: str) -> str:
     data = data.replace("_", " ")
 
     # TODO: include all weird characters for other languages
-    SPECIAL_CHARS = "^-.,:/~¤ øæåØÆÅéüÜÉýÝ"
+    SPECIAL_CHARS = "^-.,:/~¤£ øæåØÆÅéüÜÉýÝ"
     return "".join(
         c for c in data if c in string.digits + string.ascii_letters + SPECIAL_CHARS
     )
