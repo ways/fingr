@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-
 # Build: docker buildx build -t fingr -f Dockerfile .
 # Run: docker run -it --rm fingr:latest
 
