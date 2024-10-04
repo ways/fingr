@@ -17,7 +17,7 @@ services:
       - type: tmpfs
         target: /tmp
         tmpfs:
-          size: 100M
+          size: 10M
     depends_on:
       - redis
 
