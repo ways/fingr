@@ -59,6 +59,11 @@ User docker compose:
 
 * `docker compose up`
 
+Or:
+
+* Start redis: `docker run -it --rm --network host redis`
+* Start fingr.py
+
 ## Testing
 
     - create a venv and install tox
