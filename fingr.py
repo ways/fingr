@@ -343,13 +343,13 @@ def format_meteogram(
     for interval in forecast.data.intervals:
         temperature = int(interval.variables["air_temperature"].value)
         wind_from_direction = int(interval.variables["wind_from_direction"].value)
-        wind_speed = int(interval.variables["wind_speed"].value)
         if wind_chill:
             temperature = calculate_wind_chill(temperature, wind_speed)
         if beaufort:
             interval.variables["wind_speed"].convert_to("beaufort")
         elif imperial:
             interval.variables["wind_speed"].convert_to("mph")
+        wind_speed = int(interval.variables["wind_speed"].value)
         precipitation = 0
         try:
             rain = math.ceil(float(interval.variables["precipitation_amount"].value))
