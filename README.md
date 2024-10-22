@@ -64,6 +64,12 @@ Or:
 * Start redis: `docker run -it --rm --network host redis`
 * Start fingr.py
 
+If you don't see real IPs in the log, you may need to set this in /etc/docker/daemon.json:
+
+    {
+        "userland-proxy": false
+    }
+
 ## Testing
 
     - create a venv and install tox
@@ -77,5 +83,7 @@ See legacy.txt for the transition from pyyrascii to this.
 
 ## TODO
 
+* Return error when no location found.
 * Merge read_denylist, read_motdlist.
 * Set default dirs for configs.
+* Mount configs in docker compose file.

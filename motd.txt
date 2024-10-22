@@ -1,0 +1,2 @@
+# Message to show below forecast. One per line.
+Weather forecast from yr.no, delivered by the Norwegian Meteorological Institute and the NRK.

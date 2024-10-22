@@ -712,7 +712,7 @@ denylist = read_denylist()
 motdlist = read_motdlist()
 user_agent = read_useragent()
 r = None  # redis.Redis()
-geolocator = Nominatim(user_agent=user_agent)
+geolocator = Nominatim(user_agent=user_agent, timeout=3)
 timezone_finder = timezonefinder.TimezoneFinder()
 
 if __name__ == "__main__":
