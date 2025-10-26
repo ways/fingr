@@ -83,6 +83,9 @@ indent-style = "space"
 [tool.tox]
 legacy_tox_ini = """
 [tox]
+requires =
+    tox>=4
+    tox-uv
 envlist = py, ruff-format, ruff-check, mypy, bandit
 
 [testenv]
