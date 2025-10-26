@@ -6,8 +6,8 @@
 FROM python:3.13-slim AS builder
 
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir --target=/app/packages -r requirements.txt
+COPY pyproject.toml .
+RUN pip install --no-cache-dir --target=/app/packages /app
 
 # Runtime stage - distroless
 FROM gcr.io/distroless/python3-debian12:nonroot

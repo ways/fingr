@@ -1,6 +1,0 @@
-metno-locationforecast>=1.2
-geopy~=2.4.0
-redis~=5.0.0
-pysolar==0.11
-timezonefinder~=6.5.0
-pytz==2024.2

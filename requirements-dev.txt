@@ -1,6 +1,0 @@
-bandit
-mypy
-tox
-ruff
-types-pytz
-fakeredis
