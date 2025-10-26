@@ -146,60 +146,52 @@ def clean_input(data: str) -> str:
 
 def resolve_location(
     redis_client: redis.client,
+    geolocator: Nominatim,
     data="Oslo/Norway",
 ) -> Tuple[Optional[float], Optional[float], str, bool]:
-    """Get coordinates from location name. Return lat, long, name."""
-    cache = None
-
+    """Get coordinates from location name. Return lat, long, name, cached."""
     # Check if coordinates
     if "," in data:
-        lat, lon = data.split(",")
         try:
-            lat = float(lat)
-            lon = float(lon)
+            lat_str, lon_str = data.split(",", 1)
+            lat = float(lat_str)
+            lon = float(lon_str)
             return lat, lon, f"coordinates {lat}, {lon}", False
-        except ValueError:
+        except (ValueError, IndexError):
             pass
 
-    lat = None
-    lon = None
-    address = None
-
     # Check if in redis cache
-    if redis_client is not None:
-        cache = redis_client.get(data)
+    cache = redis_client.get(data) if redis_client is not None else None
     if cache:
-        lat, lon, address = cache.decode("utf-8").split("|")
-        lat = float(lat)
-        lon = float(lon)
+        lat_str, lon_str, address = cache.decode("utf-8").split("|", 2)
+        return float(lat_str), float(lon_str), address, True
 
-    else:
-        coordinate = None
+    # Geocode the location
+    try:
+        coordinate = geolocator.geocode(data, language="en")
+    except socket.timeout as err:
+        logger.warning("Geocoding service timeout: %s", err)
+        return None, None, "No service", False
+
+    if not coordinate:
+        return None, None, "No location found", False
+
+    lat = coordinate.latitude
+    lon = coordinate.longitude
+    address = coordinate.address if isinstance(coordinate.address, str) else str(coordinate.address)
+
+    # Store to redis cache as <search>: "lat|lon|address"
+    if redis_client is not None:
         try:
-            coordinate = geolocator.geocode(data, language="en")
-        except socket.timeout as err:
-            # nominatim.openstreetmap.org down
-            print(f"nominatim.openstreetmap.org down. {err}")
-            return None, None, "No service", False
-        if coordinate:
-            lat = coordinate.latitude
-            lon = coordinate.longitude
-            try:
-                address = coordinate.address.decode("utf-8")
-            except AttributeError:
-                address = coordinate.address
-
-    if lat:
-        # Store to redis cache as <search>: "lat,lon,address"
-        if not cache:
             redis_client.setex(
                 data,
                 datetime.timedelta(days=7),
-                "|".join([str(lat), str(lon), str(address)]),
+                "|".join([str(lat), str(lon), address]),
             )
-        return lat, lon, address, cache
+        except redis.exceptions.RedisError as err:
+            logger.warning("Redis cache write failed: %s", err)
 
-    return None, None, "No location found", False
+    return lat, lon, address, False
 
 
 def fetch_weather(lat: float, lon: float, address: str = ""):
@@ -504,6 +496,8 @@ def format_oneliner(forecast, timezone, imperial=False, beaufort=False, offset=0
 
 async def handle_request(reader, writer):
     """Receives connections and responds."""
+    global r, geolocator
+
     data = await reader.read(input_limit)
     response = ""
     updated = None
@@ -544,16 +538,20 @@ async def handle_request(reader, writer):
             user_input = user_input[1:]
             wind_chill = True
 
+        # Parse screen width
         if "~" in user_input:
-            screenwidth = int(user_input.split("~")[1])
-            user_input = user_input.split("~")[0]
+            try:
+                user_input, width_str = user_input.split("~", 1)
+                screenwidth = max(80, min(int(width_str), 200))
+            except ValueError:
+                pass
 
         if user_input == "help" or len(user_input) == 0:
             logger.info("%s help", addr[0])
             response = service_usage()
 
         else:
-            lat, lon, address, cached_location = resolve_location(r, user_input)
+            lat, lon, address, cached_location = resolve_location(r, geolocator, user_input)
             if not lat:
                 if address == "No service":
                     response += "Error: address service down. You can still use coordinates."
@@ -605,9 +603,11 @@ async def handle_request(reader, writer):
         writer.close()
 
         if last_reply_file:
-            with open(last_reply_file, mode="w", encoding="utf-8") as f:
-                f.write(addr[0] + " " + user_input + "\n\n")
-                f.write(response)
+            try:
+                with open(last_reply_file, mode="w", encoding="utf-8") as f:
+                    f.write(f"{addr[0]} {user_input}\n\n{response}")
+            except OSError as err:
+                logger.warning("Failed to write last reply file: %s", err)
 
 
 async def main(args):
