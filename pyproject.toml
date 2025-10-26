@@ -48,6 +48,10 @@ Repository = "https://github.com/ways/fingr"
 requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools]
+packages = []
+
+# Ruff configuration
 [tool.ruff]
 line-length = 100
 target-version = "py38"
@@ -69,3 +73,39 @@ ignore = [
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+# Tox configuration
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+envlist = py312, ruff-format, ruff-check, mypy, bandit
+
+[testenv]
+description = Run unit tests
+extras = dev
+commands = python3 -m unittest fingr_test.py
+
+[testenv:ruff-check]
+description = Run ruff linter
+deps = ruff
+commands = ruff check {toxinidir}/fingr.py
+
+[testenv:ruff-format]
+description = Check code formatting with ruff
+deps = ruff
+commands = ruff format --check {toxinidir}/fingr.py
+
+[testenv:mypy]
+ignore_outcome = true
+description = Check typing
+deps = 
+    mypy
+    types-pytz
+commands = mypy --follow-imports skip {toxinidir}/fingr.py
+
+[testenv:bandit]
+ignore_outcome = true
+description = Check for security issues
+deps = bandit
+commands = bandit {toxinidir}/fingr.py
+"""

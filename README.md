@@ -65,13 +65,13 @@ Using uv (recommended):
 Using Docker:
 
 * With docker compose: `docker compose up`
-* With Ubuntu-based image: `docker build -t fingr -f Dockerfile . && docker run -it --rm fingr`
-* With distroless image: `docker build -t fingr -f Dockerfile.distroless . && docker run -it --rm fingr`
+* With distroless image (recommended): `docker build -t fingr . && docker run -it --rm fingr`
+* With Ubuntu-based image: `docker build -t fingr -f Dockerfile.ubuntu . && docker run -it --rm fingr`
 
 Or using pip:
 
 * Start redis: `docker run -it --rm --network host redis`
-* Install dependencies: `pip install -r requirements.txt`
+* Install: `pip install -e .`
 * Start fingr.py
 
 If you don't see real IPs in the log, you may need to set this in /etc/docker/daemon.json:
@@ -84,6 +84,11 @@ If you don't see real IPs in the log, you may need to set this in /etc/docker/da
 
     - Install uv: `curl -LsSf https://astral.sh/uv/install.sh | sh`
     - Run `uv run tox`
+    
+Or with pip:
+    
+    - Install: `pip install -e .[dev]`
+    - Run: `tox`
 
 ## More
 
