@@ -10,11 +10,15 @@ authors = [
 ]
 keywords = ["finger", "weather"]
 classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: System Administrators",
+    "Development Status :: 5 - Production/Stable",
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Networking",
     "Operating System :: POSIX :: Linux",
     "Environment :: Console",
@@ -25,6 +29,7 @@ dependencies = [
     "metno-locationforecast>=1.2",
     "geopy~=2.4.0",
     "redis~=5.0.0",
+    "async_timeout", # redis dep
     "pysolar==0.11",
     "timezonefinder~=6.5.0",
     "pytz==2024.2",
@@ -78,7 +83,7 @@ indent-style = "space"
 [tool.tox]
 legacy_tox_ini = """
 [tox]
-envlist = py312, ruff-format, ruff-check, mypy, bandit
+envlist = py, ruff-format, ruff-check, mypy, bandit
 
 [testenv]
 description = Run unit tests
@@ -98,7 +103,7 @@ commands = ruff format --check {toxinidir}/fingr.py
 [testenv:mypy]
 ignore_outcome = true
 description = Check typing
-deps = 
+deps =
     mypy
     types-pytz
 commands = mypy --follow-imports skip {toxinidir}/fingr.py
