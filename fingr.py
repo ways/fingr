@@ -76,7 +76,7 @@ def random_message(messages: list) -> str:
     """Pick a random message of the day."""
     if 0 == len(messages):
         return ""
-    return "[" + messages[secrets.randbelow(len(messages) - 1)] + "]\n"
+    return "[" + messages[secrets.randbelow(len(messages))] + "]\n"
 
 
 def load_deny_list() -> list:
