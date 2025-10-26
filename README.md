@@ -89,7 +89,6 @@ Or with pip:
     
     - Install: `pip install -e .[dev]`
     - Run: `tox`
->>>>>>> 1f72b1f (Consolidate configuration into pyproject.toml)
 
 ## More
 
