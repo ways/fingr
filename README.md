@@ -65,8 +65,8 @@ Using uv (recommended):
 Using Docker:
 
 * With docker compose: `docker compose up`
-* With Ubuntu-based image: `docker build -t fingr -f Dockerfile . && docker run -it --rm fingr`
-* With distroless image: `docker build -t fingr -f Dockerfile.distroless . && docker run -it --rm fingr`
+* With distroless image (recommended): `docker build -t fingr . && docker run -it --rm fingr`
+* With Ubuntu-based image: `docker build -t fingr -f Dockerfile.ubuntu . && docker run -it --rm fingr`
 
 Or using pip:
 
