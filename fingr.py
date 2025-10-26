@@ -30,7 +30,7 @@ last_reply_file = "/tmp/fingr"  # nosec B108
 
 
 def load_user_agent() -> str:
-    """Met.no requires a contact address as user agent."""
+    """Load user agent string from file. Met.no requires a contact address as user agent."""
     uafile = "useragent.txt"
 
     try:
@@ -47,7 +47,7 @@ def load_user_agent() -> str:
 
 
 def load_motd_list() -> list:
-    """Random message to user."""
+    """Load message of the day list from file."""
     motdfile = "motd.txt"
     motdlist = []
     count = 0
@@ -80,7 +80,7 @@ def random_message(messages: list) -> str:
 
 
 def load_deny_list() -> list:
-    """Populate list of IPs to deny service."""
+    """Load list of IPs to deny service from file."""
     denyfile = "deny.txt"
     denylist = []
     count = 0
@@ -152,7 +152,7 @@ def clean_input(data: str) -> str:
 def resolve_location(
     redis_client: redis.client,
     data="Oslo/Norway",
-) -> Tuple[float | None, float | None, str, bool]:
+) -> Tuple[Optional[float], Optional[float], str, bool]:
     """Get coordinates from location name. Return lat, long, name."""
     cache = None
 
@@ -282,7 +282,6 @@ def format_meteogram(
             wind_speed = int(interval.variables["wind_speed"].value)
             temperature = calculate_wind_chill(temperature, wind_speed)
 
-        precipitation = 0
         try:
             precipitation = math.ceil(
                 float(interval.variables["precipitation_amount"].value)
@@ -292,7 +291,7 @@ def format_meteogram(
                     precipitation / 25.4
                 )  # No convert_to for this unit in lib
         except KeyError:
-            pass
+            precipitation = 0
 
         if temperature > temphigh:
             temphigh = temperature
@@ -350,13 +349,12 @@ def format_meteogram(
         elif imperial:
             interval.variables["wind_speed"].convert_to("mph")
         wind_speed = int(interval.variables["wind_speed"].value)
-        precipitation = 0
         try:
             rain = math.ceil(float(interval.variables["precipitation_amount"].value))
             if imperial:
                 rain = rain / 25.4  # No convert_to for this unit in lib
         except KeyError:
-            pass
+            rain = 0
 
         iteration += 1
         if iteration > hourcount:
