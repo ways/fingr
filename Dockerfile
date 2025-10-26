@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y python3-pip python3-venv && \
 COPY requirements.txt /var/fingr/
 WORKDIR /var/fingr/
 
-RUN python -m venv /var/fingr/venv && \
+RUN python3 -m venv /var/fingr/venv && \
     /var/fingr/venv/bin/pip install --no-cache-dir wheel && \
     /var/fingr/venv/bin/pip install --no-cache-dir -r requirements.txt
 
