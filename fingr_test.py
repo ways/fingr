@@ -12,7 +12,6 @@ verbose = True
 
 
 class TestServerMethods(unittest.TestCase):
-
     def test_wind_direction(self):
         """Test results from wind direction"""
         symbol = fingr.wind_direction(123)
@@ -44,7 +43,7 @@ class TestServerMethods(unittest.TestCase):
         r = redis.Redis(host=server_address[0], port=server_address[1])
 
         latitude, longitude, address, cached = fingr.resolve_location(
-            r, data="Oslo/Norway"
+            r, fingr.geolocator, data="Oslo/Norway"
         )
         self.assertEqual(latitude, 59.9133301)
         self.assertEqual(longitude, 10.7389701)
