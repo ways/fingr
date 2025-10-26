@@ -62,9 +62,11 @@ Using uv (recommended):
 * Start redis: `docker run -it --rm --network host redis`
 * Run fingr: `uv run python fingr.py`
 
-Using docker compose:
+Using Docker:
 
-* `docker compose up`
+* With docker compose: `docker compose up`
+* With Ubuntu-based image: `docker build -t fingr -f Dockerfile . && docker run -it --rm fingr`
+* With distroless image: `docker build -t fingr -f Dockerfile.distroless . && docker run -it --rm fingr`
 
 Or using pip:
 

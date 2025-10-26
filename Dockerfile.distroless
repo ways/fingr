@@ -1,10 +1,9 @@
-# syntax=docker/dockerfile:1
-
-# Build: docker buildx build -t fingr -f Dockerfile.python .
+# Build: docker buildx build -t fingr -f Dockerfile.distroless .
 # Run: docker run -it --rm fingr:latest
+# Distroless image for minimal attack surface
 
 # Build stage
-FROM python:3.12-alpine AS builder
+FROM python:3.13-slim AS builder
 
 WORKDIR /app
 COPY requirements.txt .
