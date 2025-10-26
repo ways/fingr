@@ -1,7 +1,6 @@
 bandit
 mypy
 tox
-prospector
-black
+ruff
 types-pytz
 fakeredis

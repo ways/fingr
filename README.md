@@ -55,13 +55,21 @@ Contributions from:
 
 ## Server install or running locally
 
-User docker compose:
+Using uv (recommended):
+
+* Install uv: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+* Install dependencies: `uv sync`
+* Start redis: `docker run -it --rm --network host redis`
+* Run fingr: `uv run python fingr.py`
+
+Using docker compose:
 
 * `docker compose up`
 
-Or:
+Or using pip:
 
 * Start redis: `docker run -it --rm --network host redis`
+* Install dependencies: `pip install -r requirements.txt`
 * Start fingr.py
 
 If you don't see real IPs in the log, you may need to set this in /etc/docker/daemon.json:
@@ -72,8 +80,8 @@ If you don't see real IPs in the log, you may need to set this in /etc/docker/da
 
 ## Testing
 
-    - create a venv and install tox
-    - Run `tox`
+    - Install uv: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+    - Run `uv run tox`
 
 ## More
 

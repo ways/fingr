@@ -1,0 +1,71 @@
+[project]
+name = "fingr"
+version = "1.0.0"
+description = "Finger server, serving weather forecast based on location input"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "GPL-3.0-or-later"}
+authors = [
+    {name = "Lars Falk-Petersen", email = "dev@falkp.no"}
+]
+keywords = ["finger", "weather"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Topic :: System :: Networking",
+    "Operating System :: POSIX :: Linux",
+    "Environment :: Console",
+    "Topic :: Internet :: Finger",
+]
+
+dependencies = [
+    "metno-locationforecast>=1.2",
+    "geopy~=2.4.0",
+    "redis~=5.0.0",
+    "pysolar==0.11",
+    "timezonefinder~=6.5.0",
+    "pytz==2024.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "bandit",
+    "mypy",
+    "tox",
+    "ruff",
+    "types-pytz",
+    "fakeredis",
+]
+
+[project.urls]
+Homepage = "https://github.com/ways/fingr"
+Repository = "https://github.com/ways/fingr"
+
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+line-length = 100
+target-version = "py38"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
