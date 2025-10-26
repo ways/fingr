@@ -10,14 +10,14 @@ import secrets
 import socket  # To catch connection error
 import string
 import sys
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
-import pysolar
+import pysolar  # type: ignore[import-untyped]
 import pytz
-import redis
-import timezonefinder
-from geopy.geocoders import Nominatim
-from metno_locationforecast import Forecast, Place
+import redis  # type: ignore[import-untyped]
+import timezonefinder  # type: ignore[import-untyped]
+from geopy.geocoders import Nominatim  # type: ignore[import-untyped]
+from metno_locationforecast import Forecast, Place  # type: ignore[import-untyped]
 
 __version__ = "2024-10"
 __url__ = "https://github.com/ways/fingr"
@@ -102,7 +102,7 @@ def load_deny_list() -> list:
     return denylist
 
 
-def get_timezone(lat: float, lon: float) -> pytz.BaseTzInfo:
+def get_timezone(lat: float, lon: float) -> Any:  # type: ignore[type-arg]
     """Return timezone for coordinate."""
     return pytz.timezone(timezone_finder.timezone_at(lng=lon, lat=lat))
 
@@ -194,7 +194,7 @@ def resolve_location(
     return lat, lon, address, False
 
 
-def fetch_weather(lat: float, lon: float, address: str = ""):
+def fetch_weather(lat: float, lon: float, address: str = "") -> Tuple[Any, Any]:
     """Get forecast data using metno-locationforecast."""
     location = Place(address, lat, lon)
     forecast = Forecast(location, user_agent=user_agent)
@@ -204,7 +204,7 @@ def fetch_weather(lat: float, lon: float, address: str = ""):
     return forecast, updated
 
 
-def calculate_wind_chill(temperature: float, wind_speed: float):
+def calculate_wind_chill(temperature: float, wind_speed: float) -> int:
     return int(
         13.12
         + (0.615 * float(temperature))
@@ -221,17 +221,17 @@ def sun_up(latitude: float, longitude: float, date: datetime.datetime) -> bool:
 
 
 def format_meteogram(
-    forecast,
-    lat,
-    lon,
-    timezone,
-    imperial=False,
-    beaufort=False,
-    offset=0,
-    hourstep=1,
-    screenwidth=80,
-    wind_chill=False,
-):
+    forecast: Any,
+    lat: float,
+    lon: float,
+    timezone: Any,
+    imperial: bool = False,
+    beaufort: bool = False,
+    offset: int = 0,
+    hourstep: int = 1,
+    screenwidth: int = 80,
+    wind_chill: bool = False,
+) -> str:
     """Format a meteogram from forcast data."""
     output = ""
 
@@ -272,7 +272,7 @@ def format_meteogram(
         try:
             precipitation = math.ceil(float(interval.variables["precipitation_amount"].value))
             if imperial:
-                precipitation = precipitation / 25.4  # No convert_to for this unit in lib
+                precipitation = int(precipitation / 25.4)  # No convert_to for this unit in lib
         except KeyError:
             precipitation = 0
 
@@ -335,7 +335,7 @@ def format_meteogram(
         try:
             rain = math.ceil(float(interval.variables["precipitation_amount"].value))
             if imperial:
-                rain = rain / 25.4  # No convert_to for this unit in lib
+                rain = int(rain / 25.4)  # No convert_to for this unit in lib
         except KeyError:
             rain = 0
 
@@ -458,7 +458,15 @@ def format_meteogram(
     return output
 
 
-def print_units(graph, screenwidth, imperial, beaufort, windline, windstrline, timeline):
+def print_units(
+    graph: dict[int, str],
+    screenwidth: int,
+    imperial: bool,
+    beaufort: bool,
+    windline: int,
+    windstrline: int,
+    timeline: int,
+) -> dict[int, str]:
     """Add units for rain, wind, etc."""
     graph[0] = " 'C" + str.rjust("Rain (mm) ", screenwidth - 3)
     if imperial:
@@ -475,13 +483,20 @@ def print_units(graph, screenwidth, imperial, beaufort, windline, windstrline, t
     return graph
 
 
-def print_meteogram_header(display_name, screenwidth):
+def print_meteogram_header(display_name: str, screenwidth: int) -> str:
     """Return the header."""
     headline = f"-= Meteogram for {display_name} =-"
     return str.center(headline, screenwidth) + "\n"
 
 
-def format_oneliner(forecast, timezone, imperial=False, beaufort=False, offset=0, wind_chill=False):
+def format_oneliner(
+    forecast: Any,
+    timezone: Any,
+    imperial: bool = False,
+    beaufort: bool = False,
+    offset: int = 0,
+    wind_chill: bool = False,
+) -> str:
     """Return a one-line weather forecast. TODO: remove json, respect windchill, imperial, etc."""
     start_time = None
     place = forecast.place.name
@@ -494,7 +509,7 @@ def format_oneliner(forecast, timezone, imperial=False, beaufort=False, offset=0
     return f"{start_time} {place} next 6 hours: {next6}"
 
 
-async def handle_request(reader, writer):
+async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
     """Receives connections and responds."""
     global r, geolocator
 
@@ -559,42 +574,46 @@ async def handle_request(reader, writer):
                     logger.info('%s NOTFOUND "%s"', addr[0], user_input)
                     response += "Location not found. Try help."
             else:
-                timezone = get_timezone(lat, lon)
-                weather_data, updated = fetch_weather(lat, lon, address)
-                logger.info(
-                    '%s Resolved "%s" to "%s". location cached: %s. '
-                    + "Weatherdata: %s. o:%s, ^:%s, £:%s, ¤:%s",
-                    addr[0],
-                    user_input,
-                    address,
-                    bool(cached_location),
-                    updated,
-                    bool(oneliner),
-                    bool(imperial),
-                    bool(beaufort),
-                    bool(wind_chill),
-                )
-
-                if not oneliner:
-                    response = format_meteogram(
-                        weather_data,
-                        lat,
-                        lon,
-                        imperial=imperial,
-                        beaufort=beaufort,
-                        screenwidth=screenwidth,
-                        wind_chill=wind_chill,
-                        timezone=timezone,
-                    )
-                    response += random_message(motdlist)
+                # At this point lat and lon are guaranteed to be float, not None
+                if lat is None or lon is None:
+                    response = "Location not found. Try help."
                 else:
-                    response = format_oneliner(
-                        weather_data,
-                        timezone=timezone,
-                        imperial=imperial,
-                        beaufort=beaufort,
-                        wind_chill=wind_chill,
+                    timezone = get_timezone(lat, lon)
+                    weather_data, updated = fetch_weather(lat, lon, address)
+                    logger.info(
+                        '%s Resolved "%s" to "%s". location cached: %s. '
+                        + "Weatherdata: %s. o:%s, ^:%s, £:%s, ¤:%s",
+                        addr[0],
+                        user_input,
+                        address,
+                        bool(cached_location),
+                        updated,
+                        bool(oneliner),
+                        bool(imperial),
+                        bool(beaufort),
+                        bool(wind_chill),
                     )
+
+                    if not oneliner:
+                        response = format_meteogram(
+                            weather_data,
+                            lat,
+                            lon,
+                            imperial=imperial,
+                            beaufort=beaufort,
+                            screenwidth=screenwidth,
+                            wind_chill=wind_chill,
+                            timezone=timezone,
+                        )
+                        response += random_message(motdlist)
+                    else:
+                        response = format_oneliner(
+                            weather_data,
+                            timezone=timezone,
+                            imperial=imperial,
+                            beaufort=beaufort,
+                            wind_chill=wind_chill,
+                        )
 
     finally:
         writer.write(response.encode())
@@ -610,7 +629,7 @@ async def handle_request(reader, writer):
                 logger.warning("Failed to write last reply file: %s", err)
 
 
-async def main(args):
+async def main(args: argparse.Namespace) -> None:
     """Start server and bind to port."""
     global r
 
@@ -633,7 +652,7 @@ async def main(args):
         await server.serve_forever()
 
 
-def service_usage():
+def service_usage() -> str:
     return """Weather via finger, graph.no
 
 * Code: https://github.com/ways/fingr/
