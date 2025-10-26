@@ -29,7 +29,7 @@ weather_legend = (
 last_reply_file = "/tmp/fingr"  # nosec B108
 
 
-def read_useragent() -> str:
+def load_user_agent() -> str:
     """Met.no requires a contact address as user agent."""
     uafile = "useragent.txt"
 
@@ -46,7 +46,7 @@ def read_useragent() -> str:
     return "default fingr useragent"
 
 
-def read_motdlist() -> list:
+def load_motd_list() -> list:
     """Random message to user."""
     motdfile = "motd.txt"
     motdlist = []
@@ -79,7 +79,7 @@ def random_message(messages: list) -> str:
     return "[" + messages[secrets.randbelow(len(messages) - 1)] + "]\n"
 
 
-def read_denylist() -> list:
+def load_deny_list() -> list:
     """Populate list of IPs to deny service."""
     denyfile = "deny.txt"
     denylist = []
@@ -708,9 +708,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger()
 
-denylist = read_denylist()
-motdlist = read_motdlist()
-user_agent = read_useragent()
+denylist = load_deny_list()
+motdlist = load_motd_list()
+user_agent = load_user_agent()
 r = None  # redis.Redis()
 geolocator = Nominatim(user_agent=user_agent, timeout=3)
 timezone_finder = timezonefinder.TimezoneFinder()
