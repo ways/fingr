@@ -6,8 +6,16 @@
 FROM python:3.13-slim AS builder
 
 WORKDIR /app
+
+# Copy only pyproject.toml first to leverage Docker cache
 COPY pyproject.toml .
-RUN pip install --no-cache-dir --target=/app/packages /app
+
+# Create a minimal setup to install dependencies from pyproject.toml
+# We create a dummy package structure so pip can resolve dependencies
+RUN mkdir -p fingr_pkg && \
+    echo "# Dummy" > fingr_pkg/__init__.py && \
+    pip install --no-cache-dir --target=/app/packages . && \
+    rm -rf fingr_pkg
 
 # Runtime stage - distroless
 FROM gcr.io/distroless/python3-debian12:nonroot
