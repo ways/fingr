@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
 
-import os
-import sys
 import argparse
-import logging
 import asyncio
-import math
 import datetime
-import pytz
+import logging
+import math
+import os
 import secrets
-import string
-from geopy.geocoders import Nominatim
-from metno_locationforecast import Place, Forecast
-import redis
-import pysolar
-import timezonefinder
 import socket  # To catch connection error
-from typing import Tuple, Optional
+import string
+import sys
+from typing import Optional, Tuple
+
+import pysolar
+import pytz
+import redis
+import timezonefinder
+from geopy.geocoders import Nominatim
+from metno_locationforecast import Forecast, Place
 
 __version__ = "2024-10"
 __url__ = "https://github.com/ways/fingr"
@@ -34,7 +35,7 @@ def load_user_agent() -> str:
     uafile = "useragent.txt"
 
     try:
-        with open(uafile, mode="r", encoding="utf-8") as f:
+        with open(uafile, encoding="utf-8") as f:
             for line in f:
                 return line.strip()
         logger.info("Read useragent file <%s>", uafile)
@@ -53,7 +54,7 @@ def load_motd_list() -> list:
     count = 0
 
     try:
-        with open(motdfile, mode="r", encoding="utf-8") as f:
+        with open(motdfile, encoding="utf-8") as f:
             for line in f:
                 count += 1
                 line = line.strip()
@@ -65,9 +66,7 @@ def load_motd_list() -> list:
 
         logger.info("Read motd file with <%s> lines.", count)
     except FileNotFoundError as err:
-        logger.warning(
-            "Unable to read motd list, <%s/%s>. Warning: %s", os.getcwd(), motdfile, err
-        )
+        logger.warning("Unable to read motd list, <%s/%s>. Warning: %s", os.getcwd(), motdfile, err)
 
     return motdlist
 
@@ -86,7 +85,7 @@ def load_deny_list() -> list:
     count = 0
 
     try:
-        with open(denyfile, mode="r", encoding="utf-8") as f:
+        with open(denyfile, encoding="utf-8") as f:
             for line in f:
                 count += 1
                 line = line.strip()
@@ -98,9 +97,7 @@ def load_deny_list() -> list:
 
         logger.info("Read denylist with %s lines.", count)
     except FileNotFoundError as err:
-        logger.warning(
-            "Unable to read deny list, <%s/%s>. Warning: %s", os.getcwd(), denyfile, err
-        )
+        logger.warning("Unable to read deny list, <%s/%s>. Warning: %s", os.getcwd(), denyfile, err)
 
     return denylist
 
@@ -144,9 +141,7 @@ def clean_input(data: str) -> str:
 
     # TODO: include all weird characters for other languages
     SPECIAL_CHARS = "^-.,:/~¤£ øæåØÆÅéüÜÉýÝ"
-    return "".join(
-        c for c in data if c in string.digits + string.ascii_letters + SPECIAL_CHARS
-    )
+    return "".join(c for c in data if c in string.digits + string.ascii_letters + SPECIAL_CHARS)
 
 
 def resolve_location(
@@ -184,7 +179,7 @@ def resolve_location(
             coordinate = geolocator.geocode(data, language="en")
         except socket.timeout as err:
             # nominatim.openstreetmap.org down
-            print("nominatim.openstreetmap.org down. %s" % err)
+            print(f"nominatim.openstreetmap.org down. {err}")
             return None, None, "No service", False
         if coordinate:
             lat = coordinate.latitude
@@ -249,7 +244,7 @@ def format_meteogram(
     output = ""
 
     # Init graph
-    graph = dict()
+    graph = {}
     tempheight = 11
     timeline = 13
     windline = 15
@@ -283,13 +278,9 @@ def format_meteogram(
             temperature = calculate_wind_chill(temperature, wind_speed)
 
         try:
-            precipitation = math.ceil(
-                float(interval.variables["precipitation_amount"].value)
-            )
+            precipitation = math.ceil(float(interval.variables["precipitation_amount"].value))
             if imperial:
-                precipitation = (
-                    precipitation / 25.4
-                )  # No convert_to for this unit in lib
+                precipitation = precipitation / 25.4  # No convert_to for this unit in lib
         except KeyError:
             precipitation = 0
 
@@ -333,7 +324,7 @@ def format_meteogram(
     rainaxis = []
     for r in range(rainheight, 0, rainstep):
         if r <= rainhigh:  # + 1
-            rainaxis.append("%2.0f mm " % r)
+            rainaxis.append(f"{r:2.0f} mm ")
         else:
             rainaxis.append(" ")
 
@@ -369,12 +360,10 @@ def format_meteogram(
         )
 
         # Wind strength on x axis
-        graph[windstrline] += " " + "%2.0f" % wind_speed
+        graph[windstrline] += " " + f"{wind_speed:2.0f}"
 
         # Time on x axis
-        start_time = interval.start_time.replace(
-            tzinfo=pytz.timezone("UTC")
-        ).astimezone(timezone)
+        start_time = interval.start_time.replace(tzinfo=pytz.timezone("UTC")).astimezone(timezone)
         date = start_time.strftime("%d/%m")
         hour = start_time.strftime("%H")
         if sun_up(latitude=lat, longitude=lon, date=start_time):
@@ -443,7 +432,7 @@ def format_meteogram(
 
                 # if overflow, print number at top
                 if rain > 10 and i == 1:
-                    rainsymbol = "%2.0f" % rain
+                    rainsymbol = f"{rain:2.0f}"
                     graph[i] = graph[i][:-2] + rainsymbol
                 else:
                     # print rainmax if larger than rain.
@@ -456,9 +445,7 @@ def format_meteogram(
                     # print rain
                     graph[i] = graph[i][:-1] + rainsymbol
 
-    graph = print_units(
-        graph, screenwidth, imperial, beaufort, windline, windstrline, timeline
-    )
+    graph = print_units(graph, screenwidth, imperial, beaufort, windline, windstrline, timeline)
     output += print_meteogram_header(
         forecast.place.name + (" (wind chill)" if wind_chill else ""), screenwidth
     )
@@ -479,9 +466,7 @@ def format_meteogram(
     return output
 
 
-def print_units(
-    graph, screenwidth, imperial, beaufort, windline, windstrline, timeline
-):
+def print_units(graph, screenwidth, imperial, beaufort, windline, windstrline, timeline):
     """Add units for rain, wind, etc."""
     graph[0] = " 'C" + str.rjust("Rain (mm) ", screenwidth - 3)
     if imperial:
@@ -500,25 +485,21 @@ def print_units(
 
 def print_meteogram_header(display_name, screenwidth):
     """Return the header."""
-    headline = "-= Meteogram for %s =-" % display_name
+    headline = f"-= Meteogram for {display_name} =-"
     return str.center(headline, screenwidth) + "\n"
 
 
-def format_oneliner(
-    forecast, timezone, imperial=False, beaufort=False, offset=0, wind_chill=False
-):
+def format_oneliner(forecast, timezone, imperial=False, beaufort=False, offset=0, wind_chill=False):
     """Return a one-line weather forecast. TODO: remove json, respect windchill, imperial, etc."""
     start_time = None
     place = forecast.place.name
     next6 = forecast.json["data"]["properties"]["timeseries"][0]["data"]["next_6_hours"]
 
     for interval in forecast.data.intervals:
-        start_time = interval.start_time.replace(
-            tzinfo=pytz.timezone("UTC")
-        ).astimezone(timezone)
+        start_time = interval.start_time.replace(tzinfo=pytz.timezone("UTC")).astimezone(timezone)
         break
 
-    return "%s %s next 6 hours: %s" % (start_time, place, next6)
+    return f"{start_time} {place} next 6 hours: {next6}"
 
 
 async def handle_request(reader, writer):
@@ -575,9 +556,7 @@ async def handle_request(reader, writer):
             lat, lon, address, cached_location = resolve_location(r, user_input)
             if not lat:
                 if address == "No service":
-                    response += (
-                        "Error: address service down. You can still use coordinates."
-                    )
+                    response += "Error: address service down. You can still use coordinates."
                 else:
                     logger.info('%s NOTFOUND "%s"', addr[0], user_input)
                     response += "Location not found. Try help."
@@ -621,9 +600,7 @@ async def handle_request(reader, writer):
 
     finally:
         writer.write(response.encode())
-        logger.debug(
-            "%s Replied with %s bytes. Weatherdata: %s", addr[0], len(response), updated
-        )
+        logger.debug("%s Replied with %s bytes. Weatherdata: %s", addr[0], len(response), updated)
         await writer.drain()
         writer.close()
 
@@ -637,16 +614,12 @@ async def main(args):
     """Start server and bind to port."""
     global r
 
-    logger.info(
-        "Connecting to redis host %s port %s" % (args.redis_host, args.redis_port)
-    )
+    logger.info(f"Connecting to redis host {args.redis_host} port {args.redis_port}")
     r = redis.Redis(host=args.redis_host, port=args.redis_port)
     try:
         r.ping()
     except redis.exceptions.ConnectionError:
-        logger.error(
-            "Unable to connect to redis at <%s>:<%s>", args.redis_host, args.redis_port
-        )
+        logger.error("Unable to connect to redis at <%s>:<%s>", args.redis_host, args.redis_port)
         sys.exit(1)
     logger.info("Redis connected")
 
@@ -717,16 +690,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="fingr")
     # parser.add_argument('-h', '--help')
     parser.add_argument("-v", "--verbose", dest="verbose", action="store_true")
-    parser.add_argument(
-        "-o", "--host", dest="host", default="127.0.0.1", action="store"
-    )
+    parser.add_argument("-o", "--host", dest="host", default="127.0.0.1", action="store")
     parser.add_argument("-p", "--port", dest="port", default=7979, action="store")
     parser.add_argument(
         "-r", "--redis_host", dest="redis_host", default="localhost", action="store"
     )
-    parser.add_argument(
-        "-n", "--redis_port", dest="redis_port", default=6379, action="store"
-    )
+    parser.add_argument("-n", "--redis_port", dest="redis_port", default=6379, action="store")
 
     args = parser.parse_args()
 
