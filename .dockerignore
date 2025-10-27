@@ -1,0 +1,42 @@
+# Git
+.git
+.gitignore
+.github
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info
+dist/
+build/
+.mypy_cache
+.ruff_cache
+.pytest_cache
+
+# Testing and development
+.tox
+fingr_test.py
+pre_project_tests
+
+# Documentation
+*.md
+!README.md
+LICENSE
+
+# Docker
+Dockerfile.ubuntu
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.venv
+venv/

@@ -7,7 +7,10 @@ FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-# Install build dependencies needed for numpy
+# Install uv and build dependencies for numpy
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Install system dependencies needed for numpy
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     gcc \
@@ -16,15 +19,17 @@ RUN apt-get update && \
     libgomp1 && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy only pyproject.toml first to leverage Docker cache
+# Copy project files
 COPY pyproject.toml .
+COPY fingr.py .
 
-# Create a minimal setup to install dependencies from pyproject.toml
-# We create a dummy package structure so pip can resolve dependencies
-RUN mkdir -p fingr_pkg && \
-    echo "# Dummy" > fingr_pkg/__init__.py && \
-    pip install --no-cache-dir --target=/app/packages . && \
-    rm -rf fingr_pkg
+# Install dependencies with uv
+# UV_COMPILE_BYTECODE: Precompile Python files to .pyc for faster startup
+# UV_LINK_MODE: Use hardlinks to save space
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
+
+RUN uv pip install --system --no-cache .
 
 # Runtime stage - distroless
 FROM gcr.io/distroless/python3-debian12:nonroot
@@ -35,11 +40,13 @@ COPY --from=builder /usr/lib/x86_64-linux-gnu/libquadmath.so.0* /usr/lib/x86_64-
 COPY --from=builder /usr/lib/x86_64-linux-gnu/libgomp.so.1* /usr/lib/x86_64-linux-gnu/
 COPY --from=builder /lib/x86_64-linux-gnu/libgcc_s.so.1* /lib/x86_64-linux-gnu/
 
-COPY --from=builder /app/packages /app/packages
-COPY fingr.py motd.txt* deny.txt* useragent.txt* /app/
+# Copy Python packages and application
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY motd.txt* deny.txt* useragent.txt* /app/
+COPY fingr.py /app/
 
 WORKDIR /app
-ENV PYTHONPATH=/app/packages
+ENV PYTHONPATH=/usr/local/lib/python3.11/site-packages
 
 EXPOSE 7979
 ENTRYPOINT ["/usr/bin/python3", "fingr.py", "--verbose", "--host", "0.0.0.0"]
