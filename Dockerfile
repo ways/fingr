@@ -16,8 +16,7 @@ RUN apt-get update && \
     gcc \
     g++ \
     libgfortran5 \
-    libgomp1 && \
-    rm -rf /var/lib/apt/lists/*
+    libgomp1
 
 # Copy project files
 COPY pyproject.toml .
@@ -25,7 +24,6 @@ COPY fingr.py .
 
 # Install dependencies with uv
 # UV_COMPILE_BYTECODE: Precompile Python files to .pyc for faster startup
-# UV_LINK_MODE: Use hardlinks to save space
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
 
