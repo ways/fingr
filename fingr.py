@@ -52,14 +52,11 @@ REQUEST_COUNT = Counter("fingr_requests_total", "Total number of requests", ["st
 LOCATION_LOOKUP_TIME = Histogram(
     "fingr_location_lookup_seconds", "Time spent looking up location", ["cached"]
 )
-WEATHER_FETCH_TIME = Histogram(
-    "fingr_weather_fetch_seconds", "Time spent fetching weather data"
-)
+WEATHER_FETCH_TIME = Histogram("fingr_weather_fetch_seconds", "Time spent fetching weather data")
 RESPONSE_TIME = Histogram("fingr_response_seconds", "Total response time")
 METEOGRAM_FORMAT_TIME = Histogram(
     "fingr_meteogram_format_seconds", "Time spent formatting meteogram"
 )
-
 
 
 def load_user_agent() -> str:
@@ -188,7 +185,7 @@ def resolve_location(
     """Get coordinates from location name. Return lat, long, name, cached."""
     start_time = time.time()
     cached = False
-    
+
     try:
         # Check if coordinates
         if "," in data:
@@ -219,7 +216,9 @@ def resolve_location(
 
         lat = coordinate.latitude
         lon = coordinate.longitude
-        address = coordinate.address if isinstance(coordinate.address, str) else str(coordinate.address)
+        address = (
+            coordinate.address if isinstance(coordinate.address, str) else str(coordinate.address)
+        )
 
         # Store to redis cache as <search>: "lat|lon|address"
         if redis_client is not None:
@@ -317,7 +316,9 @@ def format_meteogram(
                 temperature = calculate_wind_chill(temperature, wind_speed)
 
             try:
-                precipitation: int = math.ceil(float(interval.variables["precipitation_amount"].value))
+                precipitation: int = math.ceil(
+                    float(interval.variables["precipitation_amount"].value)
+                )
                 if imperial:
                     precipitation = int(precipitation / 25.4)  # No convert_to for this unit in lib
             except KeyError:
@@ -685,7 +686,7 @@ async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWri
                     f.write(f"{addr[0]} {user_input}\n\n{response}")
             except OSError as err:
                 logger.warning("Failed to write last reply file: %s", err)
-        
+
         REQUEST_COUNT.labels(status=status).inc()
         RESPONSE_TIME.observe(time.time() - request_start_time)
 

@@ -13,6 +13,7 @@ services:
     command: ["--verbose", "--redis_host", "redis"]
     ports:
       - '7979:7979'
+      - '8000:8000'  # Prometheus metrics
     volumes:
       - type: tmpfs
         target: /app/data
