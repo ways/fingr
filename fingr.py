@@ -446,7 +446,7 @@ def format_meteogram(
                     # print rain
                     graph[i] = graph[i][:-1] + rainsymbol
 
-    graph = print_units(graph, screenwidth, imperial, beaufort, windline, windstrline)
+    graph = print_units(graph, screenwidth, imperial, beaufort, windline, windstrline, timeline)
     output += print_meteogram_header(
         forecast.place.name + (" (wind chill)" if wind_chill else ""), screenwidth
     )
