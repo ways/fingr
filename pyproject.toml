@@ -81,37 +81,30 @@ indent-style = "space"
 
 # Tox configuration
 [tool.tox]
-legacy_tox_ini = """
-[tox]
-requires =
-    tox>=4
-    tox-uv
-envlist = py, ruff-format, ruff-check, bandit
+requires = ["tox>=4", "tox-uv"]
+env_list = ["py", "ruff-format", "ruff-check", "bandit"]
 
-[testenv]
-description = Run unit tests
-extras = dev
-commands = python3 -m unittest fingr_test.py
+[tool.tox.env_run_base]
+description = "Run unit tests"
+extras = ["dev"]
+commands = [["python3", "-m", "unittest", "fingr_test.py"]]
 
-[testenv:ruff-check]
-description = Run ruff linter
-deps = ruff
-commands = ruff check --fix {toxinidir}/fingr.py
+[tool.tox.env.ruff-check]
+description = "Run ruff linter"
+deps = ["ruff"]
+commands = [["ruff", "check", "--fix", "{toxinidir}/fingr.py"]]
 
-[testenv:ruff-format]
-description = Check code formatting with ruff
-deps = ruff
-commands = ruff format {toxinidir}/fingr.py
+[tool.tox.env.ruff-format]
+description = "Check code formatting with ruff"
+deps = ["ruff"]
+commands = [["ruff", "format", "{toxinidir}/fingr.py"]]
 
-[testenv:mypy]
-description = Check typing
-deps =
-    mypy
-    types-pytz
-commands = mypy --follow-imports skip {toxinidir}/fingr.py
+[tool.tox.env.mypy]
+description = "Check typing"
+deps = ["mypy", "types-pytz"]
+commands = [["mypy", "--follow-imports", "skip", "{toxinidir}/fingr.py"]]
 
-[testenv:bandit]
-description = Check for security issues
-deps = bandit
-commands = bandit {toxinidir}/fingr.py
-"""
+[tool.tox.env.bandit]
+description = "Check for security issues"
+deps = ["bandit"]
+commands = [["bandit", "{toxinidir}/fingr.py"]]
