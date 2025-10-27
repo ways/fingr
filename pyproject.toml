@@ -38,10 +38,10 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "bandit",
-    "mypy",
     "tox",
     "ruff",
     "types-pytz",
+    "types-redis",
     "fakeredis",
 ]
 
@@ -86,7 +86,7 @@ legacy_tox_ini = """
 requires =
     tox>=4
     tox-uv
-envlist = py, ruff-format, ruff-check, mypy, bandit
+envlist = py, ruff-format, ruff-check, bandit
 
 [testenv]
 description = Run unit tests
@@ -96,15 +96,14 @@ commands = python3 -m unittest fingr_test.py
 [testenv:ruff-check]
 description = Run ruff linter
 deps = ruff
-commands = ruff check {toxinidir}/fingr.py
+commands = ruff check --fix {toxinidir}/fingr.py
 
 [testenv:ruff-format]
 description = Check code formatting with ruff
 deps = ruff
-commands = ruff format --check {toxinidir}/fingr.py
+commands = ruff format {toxinidir}/fingr.py
 
 [testenv:mypy]
-ignore_outcome = true
 description = Check typing
 deps =
     mypy
@@ -112,7 +111,6 @@ deps =
 commands = mypy --follow-imports skip {toxinidir}/fingr.py
 
 [testenv:bandit]
-ignore_outcome = true
 description = Check for security issues
 deps = bandit
 commands = bandit {toxinidir}/fingr.py

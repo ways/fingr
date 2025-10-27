@@ -6,18 +6,27 @@ import datetime
 import logging
 import math
 import os
-import secrets
+import secrets  # Random selection
 import socket  # To catch connection error
 import string
 import sys
+import warnings
 from typing import Any, Dict, List, Optional, Tuple
 
 import pysolar  # type: ignore[import-untyped]
 import pytz
-import redis  # type: ignore[import-untyped]
+import redis
 import timezonefinder  # type: ignore[import-untyped]
 from geopy.geocoders import Nominatim  # type: ignore[import-untyped]
 from metno_locationforecast import Forecast, Place  # type: ignore[import-untyped]
+
+# Quiet the specific pysolar leap-second message so it doesn't spam logs
+warnings.filterwarnings(
+    "ignore",
+    message="I don't know about leap seconds after 2023",
+    category=UserWarning,
+    module=r"pysolar\.solartime",
+)
 
 # Versioning and metadata
 __version__: str = "2025-10"
@@ -364,7 +373,9 @@ def format_meteogram(
         graph[windstrline] += " " + f"{wind_speed:2.0f}"
 
         # Time on x axis
-        start_time: datetime.datetime = interval.start_time.replace(tzinfo=pytz.timezone("UTC")).astimezone(timezone)
+        start_time: datetime.datetime = interval.start_time.replace(
+            tzinfo=pytz.timezone("UTC")
+        ).astimezone(timezone)
         date: str = start_time.strftime("%d/%m")
         hour: str = start_time.strftime("%H")
         if sun_up(latitude=lat, longitude=lon, date=start_time):
@@ -652,7 +663,9 @@ async def main(args: argparse.Namespace) -> None:
     logger.info("Redis connected")
 
     logger.info("Starting on port %s", args.port)
-    server: asyncio.AbstractServer = await asyncio.start_server(handle_request, args.host, args.port)
+    server: asyncio.AbstractServer = await asyncio.start_server(
+        handle_request, args.host, args.port
+    )
 
     addr = server.sockets[0].getsockname()
     logger.info("Ready to serve on address %s:%s", addr[0], addr[1])
