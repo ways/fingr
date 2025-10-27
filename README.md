@@ -97,9 +97,24 @@ Fingr exposes Prometheus metrics on port 8000 by default. The following metrics 
 
 * `fingr_requests_total` - Total number of requests (labeled by status: success, not_found, blacklisted, help, error_no_service)
 * `fingr_location_lookup_seconds` - Time spent looking up location (labeled by cached: True/False)
-* `fingr_weather_fetch_seconds` - Time spent fetching weather data from met.no
-* `fingr_meteogram_format_seconds` - Time spent formatting the meteogram
+* `fingr_location_cache_total` - Location lookup cache hits and misses (labeled by cached: True/False)
+* `fingr_weather_fetch_seconds` - Time spent fetching weather data from met.no (labeled by cached: True/False)
+* `fingr_weather_cache_total` - Weather data cache hits and misses (labeled by cached: True/False)
 * `fingr_response_seconds` - Total response time per request
+
+### Cache Hit Percentage
+
+To calculate cache hit percentage in Prometheus/Grafana:
+
+**Location cache hit rate:**
+```promql
+rate(fingr_location_cache_total{cached="True"}[5m]) / rate(fingr_location_cache_total[5m]) * 100
+```
+
+**Weather cache hit rate:**
+```promql
+rate(fingr_weather_cache_total{cached="True"}[5m]) / rate(fingr_weather_cache_total[5m]) * 100
+```
 
 To change the metrics port, use the `--metrics-port` or `-m` flag when starting fingr:
 

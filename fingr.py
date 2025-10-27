@@ -52,11 +52,16 @@ REQUEST_COUNT = Counter("fingr_requests_total", "Total number of requests", ["st
 LOCATION_LOOKUP_TIME = Histogram(
     "fingr_location_lookup_seconds", "Time spent looking up location", ["cached"]
 )
-WEATHER_FETCH_TIME = Histogram("fingr_weather_fetch_seconds", "Time spent fetching weather data")
-RESPONSE_TIME = Histogram("fingr_response_seconds", "Total response time")
-METEOGRAM_FORMAT_TIME = Histogram(
-    "fingr_meteogram_format_seconds", "Time spent formatting meteogram"
+LOCATION_CACHE_HITS = Counter(
+    "fingr_location_cache_total", "Location lookup cache hits/misses", ["cached"]
 )
+WEATHER_FETCH_TIME = Histogram(
+    "fingr_weather_fetch_seconds", "Time spent fetching weather data", ["cached"]
+)
+WEATHER_CACHE_HITS = Counter(
+    "fingr_weather_cache_total", "Weather data cache hits/misses", ["cached"]
+)
+RESPONSE_TIME = Histogram("fingr_response_seconds", "Total response time")
 
 
 def load_user_agent() -> str:
@@ -202,6 +207,7 @@ def resolve_location(
         if cache:
             lat_str, lon_str, address = cache.decode("utf-8").split("|", 2)
             cached = True
+            LOCATION_CACHE_HITS.labels(cached="True").inc()
             return float(lat_str), float(lon_str), address, True
 
         # Geocode the location
@@ -231,6 +237,7 @@ def resolve_location(
             except redis.exceptions.RedisError as err:
                 logger.warning("Redis cache write failed: %s", err)
 
+        LOCATION_CACHE_HITS.labels(cached="False").inc()
         return lat, lon, address, False
     finally:
         LOCATION_LOOKUP_TIME.labels(cached=str(cached)).observe(time.time() - start_time)
@@ -245,9 +252,16 @@ def fetch_weather(lat: float, lon: float, address: str = "") -> Tuple[Any, Any]:
         updated: Any = forecast.update()
         if forecast.json["status_code"] != 200:
             logger.error("Forecast response: %s", forecast.json["status_code"])
+
+        # Check if data was cached (updated is "Cache" when using cached data)
+        cached = "Cache" in str(updated) if updated else False
+        WEATHER_CACHE_HITS.labels(cached=str(cached)).inc()
+
         return forecast, updated
     finally:
-        WEATHER_FETCH_TIME.observe(time.time() - start_time)
+        # The 'updated' variable tells us if data was fetched or cached
+        cached_str = "True" if updated and "Cache" in str(updated) else "False"
+        WEATHER_FETCH_TIME.labels(cached=cached_str).observe(time.time() - start_time)
 
 
 def calculate_wind_chill(temperature: float, wind_speed: float) -> int:
@@ -277,237 +291,231 @@ def format_meteogram(
     wind_chill: bool = False,
 ) -> str:
     """Format a meteogram from forecast data."""
-    start_time = time.time()
-    try:
-        output: str = ""
+    output: str = ""
 
-        # Init graph
-        graph: Dict[int, str] = {}
-        tempheight: int = 11
-        timeline: int = 13
-        windline: int = 15
-        windstrline: int = 16
-        graph[timeline] = "   "  # time
-        graph[timeline + 1] = "    "  # date line
-        graph[windline] = "   "  # wind
-        graph[windstrline] = "   "  # wind strength
-        hourcount: int = int((screenwidth - 14) / 3 + offset)
+    # Init graph
+    graph: Dict[int, str] = {}
+    tempheight: int = 11
+    timeline: int = 13
+    windline: int = 15
+    windstrline: int = 16
+    graph[timeline] = "   "  # time
+    graph[timeline + 1] = "    "  # date line
+    graph[windline] = "   "  # wind
+    graph[windstrline] = "   "  # wind strength
+    hourcount: int = int((screenwidth - 14) / 3 + offset)
 
-        # Rain in graph:
-        rainheight: int = 10
-        rainstep: int = -1
-        rainhigh: int = 0  # highest rain on graph
+    # Rain in graph:
+    rainheight: int = 10
+    rainstep: int = -1
+    rainhigh: int = 0  # highest rain on graph
 
-        # First iteration to collect temperature and rain max, min.
-        iteration: int = 0
-        temphigh: int = -99
-        templow: int = 99
-        tempstep: int = -1
-        for interval in forecast.data.intervals:
-            iteration += 1
-            if iteration > hourcount:
-                break
+    # First iteration to collect temperature and rain max, min.
+    iteration: int = 0
+    temphigh: int = -99
+    templow: int = 99
+    tempstep: int = -1
+    for interval in forecast.data.intervals:
+        iteration += 1
+        if iteration > hourcount:
+            break
 
+        if imperial:
+            interval.variables["air_temperature"].convert_to("fahrenheit")
+        temperature: int = int(interval.variables["air_temperature"].value)
+        if wind_chill:
+            wind_speed: int = int(interval.variables["wind_speed"].value)
+            temperature = calculate_wind_chill(temperature, wind_speed)
+
+        try:
+            precipitation: int = math.ceil(float(interval.variables["precipitation_amount"].value))
             if imperial:
-                interval.variables["air_temperature"].convert_to("fahrenheit")
-            temperature: int = int(interval.variables["air_temperature"].value)
-            if wind_chill:
-                wind_speed: int = int(interval.variables["wind_speed"].value)
-                temperature = calculate_wind_chill(temperature, wind_speed)
+                precipitation = int(precipitation / 25.4)  # No convert_to for this unit in lib
+        except KeyError:
+            precipitation = 0
 
-            try:
-                precipitation: int = math.ceil(
-                    float(interval.variables["precipitation_amount"].value)
-                )
-                if imperial:
-                    precipitation = int(precipitation / 25.4)  # No convert_to for this unit in lib
-            except KeyError:
-                precipitation = 0
+        if temperature > temphigh:
+            temphigh = temperature
 
-            if temperature > temphigh:
-                temphigh = temperature
+        if temperature < templow:
+            templow = temperature
 
-            if temperature < templow:
-                templow = temperature
+        if math.ceil(precipitation) > rainhigh:
+            rainhigh = precipitation
 
-            if math.ceil(precipitation) > rainhigh:
-                rainhigh = precipitation
+    # Scale y-axis based on first iteration. default = -1
+    if tempheight <= (temphigh - templow):
+        tempstep = -2
 
-        # Scale y-axis based on first iteration. default = -1
-        if tempheight <= (temphigh - templow):
-            tempstep = -2
+    if temphigh == templow:
+        templow = temphigh - 1
 
-        if temphigh == templow:
-            templow = temphigh - 1
+    # Create temp range
+    temps: List[int] = []
+    for t in range(int(temphigh), int(templow) - 1, tempstep):
+        temps.append(t)
 
-        # Create temp range
-        temps: List[int] = []
-        for t in range(int(temphigh), int(templow) - 1, tempstep):
-            temps.append(t)
+    # Extend temp range
+    for t in range(0, tempheight):
+        if len(temps) + 1 < tempheight:
+            if t % 2 == 0:  # extend down
+                temps.append(temps[len(temps) - 1] - abs(tempstep))
+            else:  # extend up
+                temps = [temps[0] + abs(tempstep)] + temps
 
-        # Extend temp range
-        for t in range(0, tempheight):
-            if len(temps) + 1 < tempheight:
-                if t % 2 == 0:  # extend down
-                    temps.append(temps[len(temps) - 1] - abs(tempstep))
-                else:  # extend up
-                    temps = [temps[0] + abs(tempstep)] + temps
+    # write temps to graph
+    for i in range(1, tempheight):
+        try:
+            graph[i] = str(temps[i - 1]).rjust(3, " ")
+        except IndexError:  # list empty
+            pass
 
-        # write temps to graph
-        for i in range(1, tempheight):
-            try:
-                graph[i] = str(temps[i - 1]).rjust(3, " ")
-            except IndexError:  # list empty
-                pass
+    # create rainaxis #TODO: make this scale
+    rainaxis: List[str] = []
+    for r in range(rainheight, 0, rainstep):
+        if r <= rainhigh:  # + 1
+            rainaxis.append(f"{r:2.0f} mm ")
+        else:
+            rainaxis.append(" ")
 
-        # create rainaxis #TODO: make this scale
-        rainaxis: List[str] = []
-        for r in range(rainheight, 0, rainstep):
-            if r <= rainhigh:  # + 1
-                rainaxis.append(f"{r:2.0f} mm ")
-            else:
-                rainaxis.append(" ")
+    # draw graph elements:
+    iteration = 0
+    for interval in forecast.data.intervals:
+        temperature = int(interval.variables["air_temperature"].value)
+        wind_from_direction: int = int(interval.variables["wind_from_direction"].value)
+        if wind_chill:
+            temperature = calculate_wind_chill(temperature, wind_speed)  # type: ignore[name-defined]
+        if beaufort:
+            interval.variables["wind_speed"].convert_to("beaufort")
+        elif imperial:
+            interval.variables["wind_speed"].convert_to("mph")
+        wind_speed = int(interval.variables["wind_speed"].value)
+        try:
+            rain: int = math.ceil(float(interval.variables["precipitation_amount"].value))
+            if imperial:
+                rain = int(rain / 25.4)  # No convert_to for this unit in lib
+        except KeyError:
+            rain = 0
 
-        # draw graph elements:
-        iteration = 0
-        for interval in forecast.data.intervals:
-            temperature = int(interval.variables["air_temperature"].value)
-            wind_from_direction: int = int(interval.variables["wind_from_direction"].value)
-            if wind_chill:
-                temperature = calculate_wind_chill(temperature, wind_speed)  # type: ignore[name-defined]
-            if beaufort:
-                interval.variables["wind_speed"].convert_to("beaufort")
-            elif imperial:
-                interval.variables["wind_speed"].convert_to("mph")
-            wind_speed = int(interval.variables["wind_speed"].value)
-            try:
-                rain: int = math.ceil(float(interval.variables["precipitation_amount"].value))
-                if imperial:
-                    rain = int(rain / 25.4)  # No convert_to for this unit in lib
-            except KeyError:
-                rain = 0
+        iteration += 1
+        if iteration > hourcount:
+            break
 
-            iteration += 1
-            if iteration > hourcount:
-                break
+        # Rain
+        rainmax: int = 0  # max rain for this hour
 
-            # Rain
-            rainmax: int = 0  # max rain for this hour
-
-            # Wind on x axis
-            graph[windline] += " " + (
-                wind_direction(wind_from_direction) if wind_speed != 0.0 else " O"
-            )
-
-            # Wind strength on x axis
-            graph[windstrline] += " " + f"{wind_speed:2.0f}"
-
-            # Time on x axis
-            start_time_interval: datetime.datetime = interval.start_time.replace(
-                tzinfo=pytz.timezone("UTC")
-            ).astimezone(timezone)
-            date: str = start_time_interval.strftime("%d/%m")
-            hour: str = start_time_interval.strftime("%H")
-            if sun_up(latitude=lat, longitude=lon, date=start_time_interval):
-                spacer: str = "_"
-            else:
-                spacer = " "
-
-            if hour == "01":  # Date changed
-                graph[timeline] = graph[timeline][:-2] + date
-            else:
-                graph[timeline] += spacer + hour
-
-            # for each y (temp) look for matching temp, draw graph
-            for i in range(1, tempheight):  # draw temp
-                try:
-                    # parse out numbers to be compared
-                    temptomatch: List[int] = [temperature]
-                    tempingraph: int = int(graph[i][:3].strip())
-
-                    if tempstep < -1:  # TODO: this should scale higher than one step
-                        temptomatch.append(temptomatch[0] - 1)
-
-                    if tempingraph in temptomatch:
-                        # Match symbols from https://api.met.no/weatherapi/weathericon/2.0/documentation
-                        if not interval.symbol_code:
-                            graph[i] += "   "
-                        elif "partlycloudy" in interval.symbol_code:  # partly
-                            graph[i] += "^^^"
-                        elif (
-                            "cloudy" in interval.symbol_code
-                            or "rain" in interval.symbol_code
-                            or "sleet" in interval.symbol_code
-                            or "snow" in interval.symbol_code
-                        ):  # clouded, rain
-                            graph[i] += "==="
-                        elif "thunder" in interval.symbol_code:  # thunder
-                            graph[i] += "=V="
-                        elif "fog" in interval.symbol_code:  # fog
-                            graph[i] += "###"
-                        elif "fair" in interval.symbol_code:  # light clouds
-                            graph[i] += "=--"
-                        elif "clearsky" in interval.symbol_code:  # clear
-                            graph[i] += "---"
-                        else:  # Shouldn't hit this
-                            graph[i] += interval.symbol_code
-                    else:
-                        graph[i] += "   "
-                except KeyError:
-                    continue
-
-                # compare rain, and print
-                # TODO: scaling
-                if (rain != 0) and (rain > 10 - i):
-                    if "sleet" in interval.symbol_code:  # sleet
-                        rainsymbol: str = "!"
-                    elif "snow" in interval.symbol_code:  # snow
-                        rainsymbol = "*"
-                    else:  # if int(item['symbolnumber']) in [5,6,9,10,11,14]: #rain
-                        rainsymbol = "|"
-
-                    # if 0 > int(item['temperature']): #rain but cold
-                    #     rainsymbol = "*"
-
-                    # if verbose:
-                    #     print("rainmax: ", rainmax,"i",i,"rain",rain)
-
-                    # if overflow, print number at top
-                    if rain > 10 and i == 1:
-                        rainsymbol = f"{rain:2.0f}"
-                        graph[i] = graph[i][:-2] + rainsymbol
-                    else:
-                        # print rainmax if larger than rain.
-                        if rainmax > rain:
-                            try:
-                                graph[i - 1] = graph[i - 1][:-1] + "'"
-                            except KeyError:
-                                pass
-
-                        # print rain
-                        graph[i] = graph[i][:-1] + rainsymbol
-
-        graph = print_units(graph, screenwidth, imperial, beaufort, windline, windstrline, timeline)
-        output += print_meteogram_header(
-            forecast.place.name + (" (wind chill)" if wind_chill else ""), screenwidth
+        # Wind on x axis
+        graph[windline] += " " + (
+            wind_direction(wind_from_direction) if wind_speed != 0.0 else " O"
         )
 
-        # add rain to graph
-        for i in range(1, tempheight):
+        # Wind strength on x axis
+        graph[windstrline] += " " + f"{wind_speed:2.0f}"
+
+        # Time on x axis
+        start_time_interval: datetime.datetime = interval.start_time.replace(
+            tzinfo=pytz.timezone("UTC")
+        ).astimezone(timezone)
+        date: str = start_time_interval.strftime("%d/%m")
+        hour: str = start_time_interval.strftime("%H")
+        if sun_up(latitude=lat, longitude=lon, date=start_time_interval):
+            spacer: str = "_"
+        else:
+            spacer = " "
+
+        if hour == "01":  # Date changed
+            graph[timeline] = graph[timeline][:-2] + date
+        else:
+            graph[timeline] += spacer + hour
+
+        # for each y (temp) look for matching temp, draw graph
+        for i in range(1, tempheight):  # draw temp
             try:
-                graph[i] += rainaxis[i - 1]
-            except IndexError:
-                pass
+                # parse out numbers to be compared
+                temptomatch: List[int] = [temperature]
+                tempingraph: int = int(graph[i][:3].strip())
 
-        for k in sorted(graph.keys()):
-            output += graph[k] + "\n"
+                if tempstep < -1:  # TODO: this should scale higher than one step
+                    temptomatch.append(temptomatch[0] - 1)
 
-        # Weather legend
-        output += weather_legend
+                if tempingraph in temptomatch:
+                    # Match symbols from https://api.met.no/weatherapi/weathericon/2.0/documentation
+                    if not interval.symbol_code:
+                        graph[i] += "   "
+                    elif "partlycloudy" in interval.symbol_code:  # partly
+                        graph[i] += "^^^"
+                    elif (
+                        "cloudy" in interval.symbol_code
+                        or "rain" in interval.symbol_code
+                        or "sleet" in interval.symbol_code
+                        or "snow" in interval.symbol_code
+                    ):  # clouded, rain
+                        graph[i] += "==="
+                    elif "thunder" in interval.symbol_code:  # thunder
+                        graph[i] += "=V="
+                    elif "fog" in interval.symbol_code:  # fog
+                        graph[i] += "###"
+                    elif "fair" in interval.symbol_code:  # light clouds
+                        graph[i] += "=--"
+                    elif "clearsky" in interval.symbol_code:  # clear
+                        graph[i] += "---"
+                    else:  # Shouldn't hit this
+                        graph[i] += interval.symbol_code
+                else:
+                    graph[i] += "   "
+            except KeyError:
+                continue
 
-        return output
-    finally:
-        METEOGRAM_FORMAT_TIME.observe(time.time() - start_time)
+            # compare rain, and print
+            # TODO: scaling
+            if (rain != 0) and (rain > 10 - i):
+                if "sleet" in interval.symbol_code:  # sleet
+                    rainsymbol: str = "!"
+                elif "snow" in interval.symbol_code:  # snow
+                    rainsymbol = "*"
+                else:  # if int(item['symbolnumber']) in [5,6,9,10,11,14]: #rain
+                    rainsymbol = "|"
+
+                # if 0 > int(item['temperature']): #rain but cold
+                #     rainsymbol = "*"
+
+                # if verbose:
+                #     print("rainmax: ", rainmax,"i",i,"rain",rain)
+
+                # if overflow, print number at top
+                if rain > 10 and i == 1:
+                    rainsymbol = f"{rain:2.0f}"
+                    graph[i] = graph[i][:-2] + rainsymbol
+                else:
+                    # print rainmax if larger than rain.
+                    if rainmax > rain:
+                        try:
+                            graph[i - 1] = graph[i - 1][:-1] + "'"
+                        except KeyError:
+                            pass
+
+                    # print rain
+                    graph[i] = graph[i][:-1] + rainsymbol
+
+    graph = print_units(graph, screenwidth, imperial, beaufort, windline, windstrline, timeline)
+    output += print_meteogram_header(
+        forecast.place.name + (" (wind chill)" if wind_chill else ""), screenwidth
+    )
+
+    # add rain to graph
+    for i in range(1, tempheight):
+        try:
+            graph[i] += rainaxis[i - 1]
+        except IndexError:
+            pass
+
+    for k in sorted(graph.keys()):
+        output += graph[k] + "\n"
+
+    # Weather legend
+    output += weather_legend
+
+    return output
 
 
 def print_units(
