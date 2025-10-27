@@ -46,6 +46,7 @@ If you want to run the server yourself, read on below.
 * metno-locationforecast as met.no API lib <https://github.com/Rory-Sullivan/metno-locationforecast/>
 * redis for caching location lookups.
 * [pysolar](https://pysolar.readthedocs.io/) for sun location
+* [prometheus-client](https://github.com/prometheus/client_python) for metrics export
 
 ## Thanks
 
@@ -89,6 +90,25 @@ Or with pip:
     
     - Install: `pip install -e .[dev]`
     - Run: `tox`
+
+## Prometheus Metrics
+
+Fingr exposes Prometheus metrics on port 8000 by default. The following metrics are available:
+
+* `fingr_requests_total` - Total number of requests (labeled by status: success, not_found, blacklisted, help, error_no_service)
+* `fingr_location_lookup_seconds` - Time spent looking up location (labeled by cached: True/False)
+* `fingr_weather_fetch_seconds` - Time spent fetching weather data from met.no
+* `fingr_meteogram_format_seconds` - Time spent formatting the meteogram
+* `fingr_response_seconds` - Total response time per request
+
+To change the metrics port, use the `--metrics-port` or `-m` flag when starting fingr:
+
+```bash
+uv run python fingr.py --metrics-port 9090
+```
+
+Access metrics at `http://localhost:8000/metrics`
+
 
 ## More
 
