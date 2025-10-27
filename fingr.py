@@ -10,7 +10,7 @@ import secrets
 import socket  # To catch connection error
 import string
 import sys
-from typing import Any, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import pysolar  # type: ignore[import-untyped]
 import pytz
@@ -19,20 +19,27 @@ import timezonefinder  # type: ignore[import-untyped]
 from geopy.geocoders import Nominatim  # type: ignore[import-untyped]
 from metno_locationforecast import Forecast, Place  # type: ignore[import-untyped]
 
-__version__ = "2024-10"
-__url__ = "https://github.com/ways/fingr"
-__license__ = "GPL3"
-input_limit = 30
-weather_legend = (
+# Versioning and metadata
+__version__: str = "2025-10"
+__url__: str = "https://github.com/ways/fingr"
+__license__: str = "GPL3"
+
+# Global constants and configuration
+input_limit: int = 30
+weather_legend: str = (
     "\nLegend left axis:   - Sunny   ^ Scattered   = Clouded   =V= Thunder   # Fog"
     + "\nLegend right axis:  | Rain    ! Sleet       * Snow\n"
 )
-last_reply_file = "/tmp/fingr"  # nosec B108
+last_reply_file: str = "/tmp/fingr"  # nosec B108
+
+# Type aliases for clarity
+RedisClient = Optional[redis.Redis]
+Timezone = datetime.tzinfo
 
 
 def load_user_agent() -> str:
     """Load user agent string from file. Met.no requires a contact address as user agent."""
-    uafile = "useragent.txt"
+    uafile: str = "useragent.txt"
 
     try:
         with open(uafile, encoding="utf-8") as f:
@@ -47,11 +54,11 @@ def load_user_agent() -> str:
     return "default fingr useragent"
 
 
-def load_motd_list() -> list:
+def load_motd_list() -> List[str]:
     """Load message of the day list from file."""
-    motdfile = "motd.txt"
-    motdlist = []
-    count = 0
+    motdfile: str = "motd.txt"
+    motdlist: List[str] = []
+    count: int = 0
 
     try:
         with open(motdfile, encoding="utf-8") as f:
@@ -71,18 +78,18 @@ def load_motd_list() -> list:
     return motdlist
 
 
-def random_message(messages: list) -> str:
+def random_message(messages: List[str]) -> str:
     """Pick a random message of the day."""
-    if 0 == len(messages):
+    if len(messages) == 0:
         return ""
     return "[" + messages[secrets.randbelow(len(messages))] + "]\n"
 
 
-def load_deny_list() -> list:
+def load_deny_list() -> List[str]:
     """Load list of IPs to deny service from file."""
-    denyfile = "deny.txt"
-    denylist = []
-    count = 0
+    denyfile: str = "deny.txt"
+    denylist: List[str] = []
+    count: int = 0
 
     try:
         with open(denyfile, encoding="utf-8") as f:
@@ -102,14 +109,19 @@ def load_deny_list() -> list:
     return denylist
 
 
-def get_timezone(lat: float, lon: float) -> Any:  # type: ignore[type-arg]
+def get_timezone(lat: float, lon: float) -> Timezone:
     """Return timezone for coordinate."""
-    return pytz.timezone(timezone_finder.timezone_at(lng=lon, lat=lat))
+    # timezone_finder is a global instance created later; its timezone_at() returns a timezone name
+    tzname: Optional[str] = timezone_finder.timezone_at(lng=lon, lat=lat)
+    if not tzname:
+        # Fallback to UTC when timezone cannot be determined
+        return pytz.UTC
+    return pytz.timezone(tzname)
 
 
 def wind_direction(deg: int) -> str:
     """Return compass direction from degrees."""
-    symbol = ""
+    symbol: str = ""
 
     if 293 <= deg < 338:
         symbol = "NW"
@@ -140,14 +152,13 @@ def clean_input(data: str) -> str:
     data = data.replace("_", " ")
 
     # TODO: include all weird characters for other languages
-    SPECIAL_CHARS = "^-.,:/~¤£ øæåØÆÅéüÜÉýÝ"
-    return "".join(c for c in data if c in string.digits + string.ascii_letters + SPECIAL_CHARS)
+    SPECIAL_CHARS: str = "^-.,:/~¤£ øæåØÆÅéüÜÉýÝ"
+    allowed_chars: str = string.digits + string.ascii_letters + SPECIAL_CHARS
+    return "".join(c for c in data if c in allowed_chars)
 
 
 def resolve_location(
-    redis_client: redis.client,
-    geolocator: Nominatim,
-    data="Oslo/Norway",
+    redis_client: RedisClient, geolocator: Nominatim, data: str = "Oslo/Norway"
 ) -> Tuple[Optional[float], Optional[float], str, bool]:
     """Get coordinates from location name. Return lat, long, name, cached."""
     # Check if coordinates
@@ -161,7 +172,7 @@ def resolve_location(
             pass
 
     # Check if in redis cache
-    cache = redis_client.get(data) if redis_client is not None else None
+    cache: Optional[bytes] = redis_client.get(data) if redis_client is not None else None
     if cache:
         lat_str, lon_str, address = cache.decode("utf-8").split("|", 2)
         return float(lat_str), float(lon_str), address, True
@@ -196,9 +207,9 @@ def resolve_location(
 
 def fetch_weather(lat: float, lon: float, address: str = "") -> Tuple[Any, Any]:
     """Get forecast data using metno-locationforecast."""
-    location = Place(address, lat, lon)
-    forecast = Forecast(location, user_agent=user_agent)
-    updated = forecast.update()
+    location: Place = Place(address, lat, lon)
+    forecast: Forecast = Forecast(location, user_agent=user_agent)
+    updated: Any = forecast.update()
     if forecast.json["status_code"] != 200:
         logger.error("Forecast response: %s", forecast.json["status_code"])
     return forecast, updated
@@ -215,16 +226,14 @@ def calculate_wind_chill(temperature: float, wind_speed: float) -> int:
 
 def sun_up(latitude: float, longitude: float, date: datetime.datetime) -> bool:
     """Return symbols showing if sun is up at a place and time."""
-    if 0 < pysolar.solar.get_altitude(latitude, longitude, date):
-        return True
-    return False
+    return 0 < pysolar.solar.get_altitude(latitude, longitude, date)
 
 
 def format_meteogram(
     forecast: Any,
     lat: float,
     lon: float,
-    timezone: Any,
+    timezone: Timezone,
     imperial: bool = False,
     beaufort: bool = False,
     offset: int = 0,
@@ -232,31 +241,31 @@ def format_meteogram(
     screenwidth: int = 80,
     wind_chill: bool = False,
 ) -> str:
-    """Format a meteogram from forcast data."""
-    output = ""
+    """Format a meteogram from forecast data."""
+    output: str = ""
 
     # Init graph
-    graph = {}
-    tempheight = 11
-    timeline = 13
-    windline = 15
-    windstrline = 16
+    graph: Dict[int, str] = {}
+    tempheight: int = 11
+    timeline: int = 13
+    windline: int = 15
+    windstrline: int = 16
     graph[timeline] = "   "  # time
     graph[timeline + 1] = "    "  # date line
     graph[windline] = "   "  # wind
-    graph[windstrline] = "   "  # wind strenght
-    hourcount = int((screenwidth - 14) / 3 + offset)
+    graph[windstrline] = "   "  # wind strength
+    hourcount: int = int((screenwidth - 14) / 3 + offset)
 
     # Rain in graph:
-    rainheight = 10
-    rainstep = -1
-    rainhigh = 0  # highest rain on graph
+    rainheight: int = 10
+    rainstep: int = -1
+    rainhigh: int = 0  # highest rain on graph
 
     # First iteration to collect temperature and rain max, min.
-    iteration = 0
-    temphigh = -99
-    templow = 99
-    tempstep = -1
+    iteration: int = 0
+    temphigh: int = -99
+    templow: int = 99
+    tempstep: int = -1
     for interval in forecast.data.intervals:
         iteration += 1
         if iteration > hourcount:
@@ -264,13 +273,13 @@ def format_meteogram(
 
         if imperial:
             interval.variables["air_temperature"].convert_to("fahrenheit")
-        temperature = int(interval.variables["air_temperature"].value)
+        temperature: int = int(interval.variables["air_temperature"].value)
         if wind_chill:
-            wind_speed = int(interval.variables["wind_speed"].value)
+            wind_speed: int = int(interval.variables["wind_speed"].value)
             temperature = calculate_wind_chill(temperature, wind_speed)
 
         try:
-            precipitation = math.ceil(float(interval.variables["precipitation_amount"].value))
+            precipitation: int = math.ceil(float(interval.variables["precipitation_amount"].value))
             if imperial:
                 precipitation = int(precipitation / 25.4)  # No convert_to for this unit in lib
         except KeyError:
@@ -293,7 +302,7 @@ def format_meteogram(
         templow = temphigh - 1
 
     # Create temp range
-    temps = []
+    temps: List[int] = []
     for t in range(int(temphigh), int(templow) - 1, tempstep):
         temps.append(t)
 
@@ -313,7 +322,7 @@ def format_meteogram(
             pass
 
     # create rainaxis #TODO: make this scale
-    rainaxis = []
+    rainaxis: List[str] = []
     for r in range(rainheight, 0, rainstep):
         if r <= rainhigh:  # + 1
             rainaxis.append(f"{r:2.0f} mm ")
@@ -324,16 +333,16 @@ def format_meteogram(
     iteration = 0
     for interval in forecast.data.intervals:
         temperature = int(interval.variables["air_temperature"].value)
-        wind_from_direction = int(interval.variables["wind_from_direction"].value)
+        wind_from_direction: int = int(interval.variables["wind_from_direction"].value)
         if wind_chill:
-            temperature = calculate_wind_chill(temperature, wind_speed)
+            temperature = calculate_wind_chill(temperature, wind_speed)  # type: ignore[name-defined]
         if beaufort:
             interval.variables["wind_speed"].convert_to("beaufort")
         elif imperial:
             interval.variables["wind_speed"].convert_to("mph")
         wind_speed = int(interval.variables["wind_speed"].value)
         try:
-            rain = math.ceil(float(interval.variables["precipitation_amount"].value))
+            rain: int = math.ceil(float(interval.variables["precipitation_amount"].value))
             if imperial:
                 rain = int(rain / 25.4)  # No convert_to for this unit in lib
         except KeyError:
@@ -344,7 +353,7 @@ def format_meteogram(
             break
 
         # Rain
-        rainmax = 0  # max rain for this hour
+        rainmax: int = 0  # max rain for this hour
 
         # Wind on x axis
         graph[windline] += " " + (
@@ -355,11 +364,11 @@ def format_meteogram(
         graph[windstrline] += " " + f"{wind_speed:2.0f}"
 
         # Time on x axis
-        start_time = interval.start_time.replace(tzinfo=pytz.timezone("UTC")).astimezone(timezone)
-        date = start_time.strftime("%d/%m")
-        hour = start_time.strftime("%H")
+        start_time: datetime.datetime = interval.start_time.replace(tzinfo=pytz.timezone("UTC")).astimezone(timezone)
+        date: str = start_time.strftime("%d/%m")
+        hour: str = start_time.strftime("%H")
         if sun_up(latitude=lat, longitude=lon, date=start_time):
-            spacer = "_"
+            spacer: str = "_"
         else:
             spacer = " "
 
@@ -372,8 +381,8 @@ def format_meteogram(
         for i in range(1, tempheight):  # draw temp
             try:
                 # parse out numbers to be compared
-                temptomatch = [temperature]
-                tempingraph = int(graph[i][:3].strip())
+                temptomatch: List[int] = [temperature]
+                tempingraph: int = int(graph[i][:3].strip())
 
                 if tempstep < -1:  # TODO: this should scale higher than one step
                     temptomatch.append(temptomatch[0] - 1)
@@ -410,7 +419,7 @@ def format_meteogram(
             # TODO: scaling
             if (rain != 0) and (rain > 10 - i):
                 if "sleet" in interval.symbol_code:  # sleet
-                    rainsymbol = "!"
+                    rainsymbol: str = "!"
                 elif "snow" in interval.symbol_code:  # snow
                     rainsymbol = "*"
                 else:  # if int(item['symbolnumber']) in [5,6,9,10,11,14]: #rain
@@ -437,7 +446,7 @@ def format_meteogram(
                     # print rain
                     graph[i] = graph[i][:-1] + rainsymbol
 
-    graph = print_units(graph, screenwidth, imperial, beaufort, windline, windstrline, timeline)
+    graph = print_units(graph, screenwidth, imperial, beaufort, windline, windstrline)
     output += print_meteogram_header(
         forecast.place.name + (" (wind chill)" if wind_chill else ""), screenwidth
     )
@@ -459,14 +468,14 @@ def format_meteogram(
 
 
 def print_units(
-    graph: dict[int, str],
+    graph: Dict[int, str],
     screenwidth: int,
     imperial: bool,
     beaufort: bool,
     windline: int,
     windstrline: int,
     timeline: int,
-) -> dict[int, str]:
+) -> Dict[int, str]:
     """Add units for rain, wind, etc."""
     graph[0] = " 'C" + str.rjust("Rain (mm) ", screenwidth - 3)
     if imperial:
@@ -485,22 +494,22 @@ def print_units(
 
 def print_meteogram_header(display_name: str, screenwidth: int) -> str:
     """Return the header."""
-    headline = f"-= Meteogram for {display_name} =-"
+    headline: str = f"-= Meteogram for {display_name} =-"
     return str.center(headline, screenwidth) + "\n"
 
 
 def format_oneliner(
     forecast: Any,
-    timezone: Any,
+    timezone: Timezone,
     imperial: bool = False,
     beaufort: bool = False,
     offset: int = 0,
     wind_chill: bool = False,
 ) -> str:
     """Return a one-line weather forecast. TODO: remove json, respect windchill, imperial, etc."""
-    start_time = None
-    place = forecast.place.name
-    next6 = forecast.json["data"]["properties"]["timeseries"][0]["data"]["next_6_hours"]
+    start_time: Optional[datetime.datetime] = None
+    place: str = forecast.place.name
+    next6: Any = forecast.json["data"]["properties"]["timeseries"][0]["data"]["next_6_hours"]
 
     for interval in forecast.data.intervals:
         start_time = interval.start_time.replace(tzinfo=pytz.timezone("UTC")).astimezone(timezone)
@@ -513,18 +522,18 @@ async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWri
     """Receives connections and responds."""
     global r, geolocator
 
-    data = await reader.read(input_limit)
-    response = ""
-    updated = None
-    imperial = False
-    beaufort = False
-    oneliner = False
+    data: bytes = await reader.read(input_limit)
+    response: str = ""
+    updated: Any = None
+    imperial: bool = False
+    beaufort: bool = False
+    oneliner: bool = False
 
     try:
-        user_input = clean_input(data.decode())
-        addr = writer.get_extra_info("peername")
-        screenwidth = 80
-        wind_chill = False
+        user_input: str = clean_input(data.decode())
+        addr: Tuple[str, int] = writer.get_extra_info("peername")  # type: ignore[assignment]
+        screenwidth: int = 80
+        wind_chill: bool = False
 
         logger.debug('%s GET "%s"', addr[0], user_input)
 
@@ -578,7 +587,7 @@ async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWri
                 if lat is None or lon is None:
                     response = "Location not found. Try help."
                 else:
-                    timezone = get_timezone(lat, lon)
+                    timezone: Timezone = get_timezone(lat, lon)
                     weather_data, updated = fetch_weather(lat, lon, address)
                     logger.info(
                         '%s Resolved "%s" to "%s". location cached: %s. '
@@ -643,7 +652,7 @@ async def main(args: argparse.Namespace) -> None:
     logger.info("Redis connected")
 
     logger.info("Starting on port %s", args.port)
-    server = await asyncio.start_server(handle_request, args.host, args.port)
+    server: asyncio.AbstractServer = await asyncio.start_server(handle_request, args.host, args.port)
 
     addr = server.sockets[0].getsockname()
     logger.info("Ready to serve on address %s:%s", addr[0], addr[1])
@@ -693,17 +702,19 @@ News:
 """
 
 
+# Configure basic logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S %z"
 )
 logger = logging.getLogger()
 
-denylist = load_deny_list()
-motdlist = load_motd_list()
-user_agent = load_user_agent()
-r = None  # redis.Redis()
-geolocator = Nominatim(user_agent=user_agent, timeout=3)
-timezone_finder = timezonefinder.TimezoneFinder()
+# Global runtime objects (with types)
+denylist: List[str] = load_deny_list()
+motdlist: List[str] = load_motd_list()
+user_agent: str = load_user_agent()
+r: RedisClient = None  # type: ignore[assignment]
+geolocator: Nominatim = Nominatim(user_agent=user_agent, timeout=3)
+timezone_finder: timezonefinder.TimezoneFinder = timezonefinder.TimezoneFinder()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="fingr")
