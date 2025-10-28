@@ -105,6 +105,7 @@ Fingr exposes Prometheus metrics on port 8000 by default. The following metrics 
 * `fingr_weather_fetch_seconds` - Time spent fetching weather data from met.no (labeled by cached: True/False)
 * `fingr_weather_cache_total` - Weather data cache hits and misses (labeled by cached: True/False)
 * `fingr_response_seconds` - Total response time per request
+* `fingr_location_requests` - Geographic coordinates of location requests (for map visualization)
 
 ### Monitoring Stack
 
@@ -113,12 +114,17 @@ When using `docker compose up`, the following monitoring services are automatica
 * **Prometheus** - `http://localhost:9090` - Metrics collection and storage
 * **Grafana** - `http://localhost:3000` - Visualization dashboard (login: admin/admin)
   * Pre-configured with Prometheus datasource
-  * Includes a "Fingr Metrics" dashboard showing:
+  * **"Fingr Metrics" dashboard** showing:
     - Request rate by status
     - Location and weather cache hit rates
     - Location lookup time percentiles
     - Weather fetch time percentiles
     - Overall response time percentiles
+  * **"Fingr Location Map" dashboard** showing:
+    - Interactive world map with all location requests plotted
+    - Each marker represents a location that was looked up
+    - Marker size shows relative request volume
+    - Top 20 locations by request count
 
 ### Manual Setup
 

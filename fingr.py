@@ -20,7 +20,7 @@ import redis
 import timezonefinder  # type: ignore[import-untyped]
 from geopy.geocoders import Nominatim  # type: ignore[import-untyped]
 from metno_locationforecast import Forecast, Place  # type: ignore[import-untyped]
-from prometheus_client import Counter, Histogram, start_http_server
+from prometheus_client import Counter, Gauge, Histogram, start_http_server
 
 # Quiet the specific pysolar leap-second message so it doesn't spam logs
 warnings.filterwarnings(
@@ -62,6 +62,11 @@ WEATHER_CACHE_HITS = Counter(
     "fingr_weather_cache_total", "Weather data cache hits/misses", ["cached"]
 )
 RESPONSE_TIME = Histogram("fingr_response_seconds", "Total response time")
+LOCATION_REQUESTS = Gauge(
+    "fingr_location_requests",
+    "Location coordinates of requests",
+    ["location_name", "latitude", "longitude"],
+)
 
 
 def load_user_agent() -> str:
@@ -647,6 +652,14 @@ async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWri
                 else:
                     timezone: Timezone = get_timezone(lat, lon)
                     weather_data, updated = fetch_weather(lat, lon, address)
+
+                    # Track location on map
+                    LOCATION_REQUESTS.labels(
+                        location_name=address[:100],  # Limit length for label
+                        latitude=f"{lat:.4f}",
+                        longitude=f"{lon:.4f}",
+                    ).set(1)
+
                     logger.info(
                         '%s Resolved "%s" to "%s". location cached: %s. '
                         + "Weatherdata: %s. o:%s, ^:%s, £:%s, ¤:%s",
