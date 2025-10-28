@@ -195,15 +195,21 @@ def resolve_location(
     """Get coordinates from location name. Return lat, long, name, cached."""
     start_time = time.time()
     cached = False
+    result_lat: Optional[float] = None
+    result_lon: Optional[float] = None
+    result_address: str = ""
+    result_cached: bool = False
 
     try:
         # Check if coordinates
         if "," in data:
             try:
                 lat_str, lon_str = data.split(",", 1)
-                lat = float(lat_str)
-                lon = float(lon_str)
-                return lat, lon, f"coordinates {lat}, {lon}", False
+                result_lat = float(lat_str)
+                result_lon = float(lon_str)
+                result_address = f"coordinates {result_lat}, {result_lon}"
+                result_cached = False
+                return result_lat, result_lon, result_address, result_cached
             except (ValueError, IndexError):
                 pass
 
@@ -211,9 +217,13 @@ def resolve_location(
         cache: Optional[bytes] = redis_client.get(data) if redis_client is not None else None
         if cache:
             lat_str, lon_str, address = cache.decode("utf-8").split("|", 2)
+            result_lat = float(lat_str)
+            result_lon = float(lon_str)
+            result_address = address
+            result_cached = True
             cached = True
             LOCATION_CACHE_HITS.labels(cached="True").inc()
-            return float(lat_str), float(lon_str), address, True
+            return result_lat, result_lon, result_address, result_cached
 
         # Geocode the location
         try:
@@ -225,11 +235,12 @@ def resolve_location(
         if not coordinate:
             return None, None, "No location found", False
 
-        lat = coordinate.latitude
-        lon = coordinate.longitude
-        address = (
+        result_lat = coordinate.latitude
+        result_lon = coordinate.longitude
+        result_address = (
             coordinate.address if isinstance(coordinate.address, str) else str(coordinate.address)
         )
+        result_cached = False
 
         # Store to redis cache as <search>: "lat|lon|address"
         if redis_client is not None:
@@ -237,13 +248,13 @@ def resolve_location(
                 redis_client.setex(
                     data,
                     datetime.timedelta(days=7),
-                    "|".join([str(lat), str(lon), address]),
+                    "|".join([str(result_lat), str(result_lon), result_address]),
                 )
             except redis.exceptions.RedisError as err:
                 logger.warning("Redis cache write failed: %s", err)
 
         LOCATION_CACHE_HITS.labels(cached="False").inc()
-        return lat, lon, address, False
+        return result_lat, result_lon, result_address, result_cached
     finally:
         LOCATION_LOOKUP_TIME.labels(cached=str(cached)).observe(time.time() - start_time)
 
