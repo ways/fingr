@@ -251,22 +251,26 @@ def resolve_location(
 def fetch_weather(lat: float, lon: float, address: str = "") -> Tuple[Any, Any]:
     """Get forecast data using metno-locationforecast."""
     start_time = time.time()
+    updated: Any = None
+    cached = False
+
     try:
         location: Place = Place(address, lat, lon)
         forecast: Forecast = Forecast(location, user_agent=user_agent)
-        updated: Any = forecast.update()
+        updated = forecast.update()
         if forecast.json["status_code"] != 200:
             logger.error("Forecast response: %s", forecast.json["status_code"])
 
-        # Check if data was cached (updated is "Cache" when using cached data)
-        cached = "Cache" in str(updated) if updated else False
+        # Check if data was cached (not modified = cached)
+        # "Data-Not-Expired" = cached, still valid
+        # "Data-Not-Modified" = cached, checked but unchanged
+        # "Data-Modified" = fresh data from API
+        cached = updated in ("Data-Not-Expired", "Data-Not-Modified")
         WEATHER_CACHE_HITS.labels(cached=str(cached)).inc()
 
         return forecast, updated
     finally:
-        # The 'updated' variable tells us if data was fetched or cached
-        cached_str = "True" if updated and "Cache" in str(updated) else "False"
-        WEATHER_FETCH_TIME.labels(cached=cached_str).observe(time.time() - start_time)
+        WEATHER_FETCH_TIME.labels(cached=str(cached)).observe(time.time() - start_time)
 
 
 def calculate_wind_chill(temperature: float, wind_speed: float) -> int:

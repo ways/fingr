@@ -104,6 +104,8 @@ Fingr exposes Prometheus metrics on port 8000 by default. The following metrics 
 * `fingr_location_cache_total` - Location lookup cache hits and misses (labeled by cached: True/False)
 * `fingr_weather_fetch_seconds` - Time spent fetching weather data from met.no (labeled by cached: True/False)
 * `fingr_weather_cache_total` - Weather data cache hits and misses (labeled by cached: True/False)
+  * Note: Weather caching is handled by the metno-locationforecast library
+  * Cache hits occur when data hasn't expired or hasn't been modified
 * `fingr_response_seconds` - Total response time per request
 * `fingr_location_requests` - Geographic coordinates of location requests (for map visualization)
 
