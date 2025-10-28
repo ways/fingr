@@ -83,7 +83,7 @@
               "showLegend": true,
               "style": {
                 "color": {
-                  "field": "Value",
+                  "field": "Requests",
                   "fixed": "dark-green"
                 },
                 "opacity": 0.7,
@@ -94,7 +94,7 @@
                   "mode": "mod"
                 },
                 "size": {
-                  "field": "Value",
+                  "field": "Requests",
                   "fixed": 10,
                   "max": 30,
                   "min": 5
@@ -104,7 +104,7 @@
                   "mode": "fixed"
                 },
                 "text": {
-                  "field": "location_name",
+                  "field": "Location",
                   "fixed": "",
                   "mode": "field"
                 },
