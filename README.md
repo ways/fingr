@@ -66,6 +66,10 @@ Using uv (recommended):
 Using Docker:
 
 * With docker compose: `docker compose up`
+  * This starts fingr, Redis, Prometheus, and Grafana
+  * Fingr available at: `finger oslo@localhost` (port 7979)
+  * Prometheus UI: `http://localhost:9090`
+  * Grafana UI: `http://localhost:3000` (login: admin/admin)
 * With distroless image (recommended): `docker build -t fingr . && docker run -it --rm fingr`
 * With Ubuntu-based image: `docker build -t fingr -f Dockerfile.ubuntu . && docker run -it --rm fingr`
 
@@ -102,6 +106,30 @@ Fingr exposes Prometheus metrics on port 8000 by default. The following metrics 
 * `fingr_weather_cache_total` - Weather data cache hits and misses (labeled by cached: True/False)
 * `fingr_response_seconds` - Total response time per request
 
+### Monitoring Stack
+
+When using `docker compose up`, the following monitoring services are automatically started:
+
+* **Prometheus** - `http://localhost:9090` - Metrics collection and storage
+* **Grafana** - `http://localhost:3000` - Visualization dashboard (login: admin/admin)
+  * Pre-configured with Prometheus datasource
+  * Includes a "Fingr Metrics" dashboard showing:
+    - Request rate by status
+    - Location and weather cache hit rates
+    - Location lookup time percentiles
+    - Weather fetch time percentiles
+    - Overall response time percentiles
+
+### Manual Setup
+
+To change the metrics port, use the `--metrics-port` or `-m` flag when starting fingr:
+
+```bash
+uv run python fingr.py --metrics-port 9090
+```
+
+Access metrics at `http://localhost:8000/metrics`
+
 ### Cache Hit Percentage
 
 To calculate cache hit percentage in Prometheus/Grafana:
@@ -115,14 +143,6 @@ rate(fingr_location_cache_total{cached="True"}[5m]) / rate(fingr_location_cache_
 ```promql
 rate(fingr_weather_cache_total{cached="True"}[5m]) / rate(fingr_weather_cache_total[5m]) * 100
 ```
-
-To change the metrics port, use the `--metrics-port` or `-m` flag when starting fingr:
-
-```bash
-uv run python fingr.py --metrics-port 9090
-```
-
-Access metrics at `http://localhost:8000/metrics`
 
 
 ## More
