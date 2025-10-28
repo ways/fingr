@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'fingr'
+    static_configs:
+      - targets: ['fingr:8000']
+        labels:
+          service: 'fingr'

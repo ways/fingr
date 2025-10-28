@@ -10,6 +10,7 @@ import secrets  # Random selection
 import socket  # To catch connection error
 import string
 import sys
+import time
 import warnings
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -19,6 +20,7 @@ import redis
 import timezonefinder  # type: ignore[import-untyped]
 from geopy.geocoders import Nominatim  # type: ignore[import-untyped]
 from metno_locationforecast import Forecast, Place  # type: ignore[import-untyped]
+from prometheus_client import Counter, Histogram, start_http_server
 
 # Quiet the specific pysolar leap-second message so it doesn't spam logs
 warnings.filterwarnings(
@@ -44,6 +46,27 @@ last_reply_file: str = "/tmp/fingr"  # nosec B108
 # Type aliases for clarity
 RedisClient = Optional[redis.Redis]
 Timezone = datetime.tzinfo
+
+# Prometheus metrics
+REQUEST_COUNT = Counter("fingr_requests_total", "Total number of requests", ["status"])
+LOCATION_LOOKUP_TIME = Histogram(
+    "fingr_location_lookup_seconds", "Time spent looking up location", ["cached"]
+)
+LOCATION_CACHE_HITS = Counter(
+    "fingr_location_cache_total", "Location lookup cache hits/misses", ["cached"]
+)
+WEATHER_FETCH_TIME = Histogram(
+    "fingr_weather_fetch_seconds", "Time spent fetching weather data", ["cached"]
+)
+WEATHER_CACHE_HITS = Counter(
+    "fingr_weather_cache_total", "Weather data cache hits/misses", ["cached"]
+)
+RESPONSE_TIME = Histogram("fingr_response_seconds", "Total response time")
+LOCATION_REQUESTS = Counter(
+    "fingr_location_requests",
+    "Number of requests per location with coordinates",
+    ["location_name", "latitude", "longitude"],
+)
 
 
 def load_user_agent() -> str:
@@ -170,58 +193,95 @@ def resolve_location(
     redis_client: RedisClient, geolocator: Nominatim, data: str = "Oslo/Norway"
 ) -> Tuple[Optional[float], Optional[float], str, bool]:
     """Get coordinates from location name. Return lat, long, name, cached."""
-    # Check if coordinates
-    if "," in data:
-        try:
-            lat_str, lon_str = data.split(",", 1)
-            lat = float(lat_str)
-            lon = float(lon_str)
-            return lat, lon, f"coordinates {lat}, {lon}", False
-        except (ValueError, IndexError):
-            pass
+    start_time = time.time()
+    cached = False
+    result_lat: Optional[float] = None
+    result_lon: Optional[float] = None
+    result_address: str = ""
+    result_cached: bool = False
 
-    # Check if in redis cache
-    cache: Optional[bytes] = redis_client.get(data) if redis_client is not None else None
-    if cache:
-        lat_str, lon_str, address = cache.decode("utf-8").split("|", 2)
-        return float(lat_str), float(lon_str), address, True
-
-    # Geocode the location
     try:
-        coordinate = geolocator.geocode(data, language="en")
-    except socket.timeout as err:
-        logger.warning("Geocoding service timeout: %s", err)
-        return None, None, "No service", False
+        # Check if coordinates
+        if "," in data:
+            try:
+                lat_str, lon_str = data.split(",", 1)
+                result_lat = float(lat_str)
+                result_lon = float(lon_str)
+                result_address = f"coordinates {result_lat}, {result_lon}"
+                result_cached = False
+                return result_lat, result_lon, result_address, result_cached
+            except (ValueError, IndexError):
+                pass
 
-    if not coordinate:
-        return None, None, "No location found", False
+        # Check if in redis cache
+        cache: Optional[bytes] = redis_client.get(data) if redis_client is not None else None
+        if cache:
+            lat_str, lon_str, address = cache.decode("utf-8").split("|", 2)
+            result_lat = float(lat_str)
+            result_lon = float(lon_str)
+            result_address = address
+            result_cached = True
+            cached = True
+            LOCATION_CACHE_HITS.labels(cached="True").inc()
+            return result_lat, result_lon, result_address, result_cached
 
-    lat = coordinate.latitude
-    lon = coordinate.longitude
-    address = coordinate.address if isinstance(coordinate.address, str) else str(coordinate.address)
-
-    # Store to redis cache as <search>: "lat|lon|address"
-    if redis_client is not None:
+        # Geocode the location
         try:
-            redis_client.setex(
-                data,
-                datetime.timedelta(days=7),
-                "|".join([str(lat), str(lon), address]),
-            )
-        except redis.exceptions.RedisError as err:
-            logger.warning("Redis cache write failed: %s", err)
+            coordinate = geolocator.geocode(data, language="en")
+        except socket.timeout as err:
+            logger.warning("Geocoding service timeout: %s", err)
+            return None, None, "No service", False
 
-    return lat, lon, address, False
+        if not coordinate:
+            return None, None, "No location found", False
+
+        result_lat = coordinate.latitude
+        result_lon = coordinate.longitude
+        result_address = (
+            coordinate.address if isinstance(coordinate.address, str) else str(coordinate.address)
+        )
+        result_cached = False
+
+        # Store to redis cache as <search>: "lat|lon|address"
+        if redis_client is not None:
+            try:
+                redis_client.setex(
+                    data,
+                    datetime.timedelta(days=7),
+                    "|".join([str(result_lat), str(result_lon), result_address]),
+                )
+            except redis.exceptions.RedisError as err:
+                logger.warning("Redis cache write failed: %s", err)
+
+        LOCATION_CACHE_HITS.labels(cached="False").inc()
+        return result_lat, result_lon, result_address, result_cached
+    finally:
+        LOCATION_LOOKUP_TIME.labels(cached=str(cached)).observe(time.time() - start_time)
 
 
 def fetch_weather(lat: float, lon: float, address: str = "") -> Tuple[Any, Any]:
     """Get forecast data using metno-locationforecast."""
-    location: Place = Place(address, lat, lon)
-    forecast: Forecast = Forecast(location, user_agent=user_agent)
-    updated: Any = forecast.update()
-    if forecast.json["status_code"] != 200:
-        logger.error("Forecast response: %s", forecast.json["status_code"])
-    return forecast, updated
+    start_time = time.time()
+    updated: Any = None
+    cached = False
+
+    try:
+        location: Place = Place(address, lat, lon)
+        forecast: Forecast = Forecast(location, user_agent=user_agent)
+        updated = forecast.update()
+        if forecast.json["status_code"] != 200:
+            logger.error("Forecast response: %s", forecast.json["status_code"])
+
+        # Check if data was cached (not modified = cached)
+        # "Data-Not-Expired" = cached, still valid
+        # "Data-Not-Modified" = cached, checked but unchanged
+        # "Data-Modified" = fresh data from API
+        cached = updated in ("Data-Not-Expired", "Data-Not-Modified")
+        WEATHER_CACHE_HITS.labels(cached=str(cached)).inc()
+
+        return forecast, updated
+    finally:
+        WEATHER_FETCH_TIME.labels(cached=str(cached)).observe(time.time() - start_time)
 
 
 def calculate_wind_chill(temperature: float, wind_speed: float) -> int:
@@ -373,12 +433,12 @@ def format_meteogram(
         graph[windstrline] += " " + f"{wind_speed:2.0f}"
 
         # Time on x axis
-        start_time: datetime.datetime = interval.start_time.replace(
+        start_time_interval: datetime.datetime = interval.start_time.replace(
             tzinfo=pytz.timezone("UTC")
         ).astimezone(timezone)
-        date: str = start_time.strftime("%d/%m")
-        hour: str = start_time.strftime("%H")
-        if sun_up(latitude=lat, longitude=lon, date=start_time):
+        date: str = start_time_interval.strftime("%d/%m")
+        hour: str = start_time_interval.strftime("%H")
+        if sun_up(latitude=lat, longitude=lon, date=start_time_interval):
             spacer: str = "_"
         else:
             spacer = " "
@@ -533,12 +593,14 @@ async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWri
     """Receives connections and responds."""
     global r, geolocator
 
+    request_start_time = time.time()
     data: bytes = await reader.read(input_limit)
     response: str = ""
     updated: Any = None
     imperial: bool = False
     beaufort: bool = False
     oneliner: bool = False
+    status: str = "success"
 
     try:
         user_input: str = clean_input(data.decode())
@@ -552,6 +614,7 @@ async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWri
         if addr[0] in denylist:
             logger.info('%s BLACKLISTED "%s"', addr[0], user_input)
             response = "You have been blacklisted for excessive use. Send a mail to blacklist@falkp.no to be delisted."
+            status = "blacklisted"
             return
 
         if user_input.startswith("o:"):
@@ -584,22 +647,34 @@ async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWri
         if user_input == "help" or len(user_input) == 0:
             logger.info("%s help", addr[0])
             response = service_usage()
+            status = "help"
 
         else:
             lat, lon, address, cached_location = resolve_location(r, geolocator, user_input)
             if not lat:
                 if address == "No service":
                     response += "Error: address service down. You can still use coordinates."
+                    status = "error_no_service"
                 else:
                     logger.info('%s NOTFOUND "%s"', addr[0], user_input)
                     response += "Location not found. Try help."
+                    status = "not_found"
             else:
                 # At this point lat and lon are guaranteed to be float, not None
                 if lat is None or lon is None:
                     response = "Location not found. Try help."
+                    status = "not_found"
                 else:
                     timezone: Timezone = get_timezone(lat, lon)
                     weather_data, updated = fetch_weather(lat, lon, address)
+
+                    # Track location on map - increment counter for each request
+                    LOCATION_REQUESTS.labels(
+                        location_name=address[:100],  # Limit length for label
+                        latitude=f"{lat:.4f}",
+                        longitude=f"{lon:.4f}",
+                    ).inc()
+
                     logger.info(
                         '%s Resolved "%s" to "%s". location cached: %s. '
                         + "Weatherdata: %s. o:%s, ^:%s, £:%s, ¤:%s",
@@ -648,6 +723,9 @@ async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWri
             except OSError as err:
                 logger.warning("Failed to write last reply file: %s", err)
 
+        REQUEST_COUNT.labels(status=status).inc()
+        RESPONSE_TIME.observe(time.time() - request_start_time)
+
 
 async def main(args: argparse.Namespace) -> None:
     """Start server and bind to port."""
@@ -661,6 +739,11 @@ async def main(args: argparse.Namespace) -> None:
         logger.error("Unable to connect to redis at <%s>:<%s>", args.redis_host, args.redis_port)
         sys.exit(1)
     logger.info("Redis connected")
+
+    # Start Prometheus metrics server
+    if args.metrics_port:
+        start_http_server(args.metrics_port)
+        logger.info("Prometheus metrics server started on port %s", args.metrics_port)
 
     logger.info("Starting on port %s", args.port)
     server: asyncio.AbstractServer = await asyncio.start_server(
@@ -739,6 +822,14 @@ if __name__ == "__main__":
         "-r", "--redis_host", dest="redis_host", default="localhost", action="store"
     )
     parser.add_argument("-n", "--redis_port", dest="redis_port", default=6379, action="store")
+    parser.add_argument(
+        "-m",
+        "--metrics-port",
+        dest="metrics_port",
+        type=int,
+        default=8000,
+        help="Port for Prometheus metrics endpoint (default: 8000)",
+    )
 
     args = parser.parse_args()
 
