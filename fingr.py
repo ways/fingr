@@ -11,11 +11,12 @@ import socket  # To catch connection error
 import string
 import sys
 import warnings
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-import pysolar  # type: ignore[import-untyped]
-import pytz
+import pysolar.solar  # type: ignore[import-untyped]
+import pytz  # type: ignore[import-untyped]
 import redis
+from redis.exceptions import RedisError, ConnectionError
 import timezonefinder  # type: ignore[import-untyped]
 from geopy.geocoders import Nominatim  # type: ignore[import-untyped]
 from metno_locationforecast import Forecast, Place  # type: ignore[import-untyped]
@@ -43,7 +44,9 @@ last_reply_file: str = "/tmp/fingr"  # nosec B108
 
 # Type aliases for clarity
 RedisClient = Optional[redis.Redis]
-Timezone = datetime.tzinfo
+# pytz's UTC and timezone objects both implement datetime.tzinfo but have additional
+# attributes/methods that mypy doesn't know about from tzinfo alone
+Timezone = Union[datetime.tzinfo, type(pytz.UTC), type(pytz.timezone("UTC"))]
 
 
 def load_user_agent() -> str:
@@ -208,7 +211,7 @@ def resolve_location(
                 datetime.timedelta(days=7),
                 "|".join([str(lat), str(lon), address]),
             )
-        except redis.exceptions.RedisError as err:
+        except RedisError as err:
             logger.warning("Redis cache write failed: %s", err)
 
     return lat, lon, address, False
@@ -235,7 +238,7 @@ def calculate_wind_chill(temperature: float, wind_speed: float) -> int:
 
 def sun_up(latitude: float, longitude: float, date: datetime.datetime) -> bool:
     """Return symbols showing if sun is up at a place and time."""
-    return 0 < pysolar.solar.get_altitude(latitude, longitude, date)
+    return 0 < pysolar.solar.get_altitude(latitude, longitude, date)  # type: ignore[attr-defined]
 
 
 def format_meteogram(
@@ -657,7 +660,7 @@ async def main(args: argparse.Namespace) -> None:
     r = redis.Redis(host=args.redis_host, port=args.redis_port)
     try:
         r.ping()
-    except redis.exceptions.ConnectionError:
+    except ConnectionError:
         logger.error("Unable to connect to redis at <%s>:<%s>", args.redis_host, args.redis_port)
         sys.exit(1)
     logger.info("Redis connected")
