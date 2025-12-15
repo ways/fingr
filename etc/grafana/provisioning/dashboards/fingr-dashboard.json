@@ -391,7 +391,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by(status) (rate(fingr_weather_data_freshness_total[5m]))",
+          "expr": "sum by(status) (rate(fingr_weather_data_freshness_total[5m])) / sum(rate(fingr_weather_data_freshness_total[5m])) * 100",
           "legendFormat": "{{status}}",
           "refId": "A"
         }
