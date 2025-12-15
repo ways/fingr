@@ -1,0 +1,223 @@
+"""Server and request handling."""
+
+import argparse
+import asyncio
+import logging
+import sys
+from typing import Any, Optional, Tuple
+
+import redis
+from geopy.geocoders import Nominatim  # type: ignore[import-untyped]
+from redis.exceptions import ConnectionError
+
+from .config import load_deny_list, load_motd_list, load_user_agent, random_message
+from .formatting import format_meteogram, format_oneliner
+from .location import RedisClient, get_timezone, resolve_location
+from .utils import clean_input
+from .weather import fetch_weather
+
+logger = logging.getLogger(__name__)
+
+# Global constants
+input_limit: int = 30
+last_reply_file: str = "/tmp/fingr"  # nosec B108
+
+# Global runtime objects (initialized in main)
+denylist = []
+motdlist = []
+user_agent = ""
+r: RedisClient = None
+geolocator: Optional[Nominatim] = None
+
+
+def service_usage() -> str:
+    return """Weather via finger, graph.no
+
+* Code: https://github.com/ways/fingr/
+* https://nominatim.org/ is used for location lookup.
+* https://www.yr.no/ is used for weather data.
+* Hosted by Copyleft Solutions AS: https://copyleft.no/
+* Contact: finger@falkp.no
+
+Usage:
+    finger oslo@graph.no
+
+Using coordinates:
+    finger 59.1,10.1@graph.no
+
+Using imperial units:
+    finger ^oslo@graph.no
+
+Using the Beaufort wind scale:
+    finger £oslo@graph.no
+
+Ask for wider output, longer forecast (~<screen width>):
+    finger oslo~200@graph.no
+
+Specify another location when names conflict:
+    finger "oslo, united states"@graph.no
+
+Display "wind chill" / "feels like" temperature:
+    finger ¤oslo@graph.no
+
+No graph, just a one-line forecast (needs improvement):
+    finger o:oslo@graph.no
+
+Hammering will get you blacklisted. Remember the data doesn't change more than once an hour.
+
+News:
+* Launched in 2012
+* 2021-05: total rewrite due to API changes. Much better location searching, proper hour-by-hour for most of the world.
+"""
+
+
+async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+    """Receives connections and responds."""
+    global r, geolocator
+
+    data: bytes = await reader.read(input_limit)
+    response: str = ""
+    updated: Any = None
+    imperial: bool = False
+    beaufort: bool = False
+    oneliner: bool = False
+
+    try:
+        user_input: str = clean_input(data.decode())
+        addr: Tuple[str, int] = writer.get_extra_info("peername")  # type: ignore[assignment]
+        screenwidth: int = 80
+        wind_chill: bool = False
+
+        logger.debug('%s GET "%s"', addr[0], user_input)
+
+        # Deny list
+        if addr[0] in denylist:
+            logger.info('%s BLACKLISTED "%s"', addr[0], user_input)
+            response = "You have been blacklisted for excessive use. Send a mail to blacklist@falkp.no to be delisted."
+            return
+
+        if user_input.startswith("o:"):
+            oneliner = True
+            user_input = user_input.replace("o:", "")
+
+        # Imperial
+        if user_input.startswith("^"):
+            user_input = user_input[1:]
+            imperial = True
+
+        # Wind speed in the Beaufort scale
+        if user_input.startswith("£"):
+            user_input = user_input[1:]
+            beaufort = True
+
+        # Wind chill
+        if user_input.startswith("¤"):
+            user_input = user_input[1:]
+            wind_chill = True
+
+        # Parse screen width
+        if "~" in user_input:
+            try:
+                user_input, width_str = user_input.split("~", 1)
+                screenwidth = max(80, min(int(width_str), 200))
+            except ValueError:
+                pass
+
+        if user_input == "help" or len(user_input) == 0:
+            logger.info("%s help", addr[0])
+            response = service_usage()
+
+        else:
+            lat, lon, address, cached_location = resolve_location(r, geolocator, user_input)
+            if not lat:
+                if address == "No service":
+                    response += "Error: address service down. You can still use coordinates."
+                else:
+                    logger.info('%s NOTFOUND "%s"', addr[0], user_input)
+                    response += "Location not found. Try help."
+            else:
+                # At this point lat and lon are guaranteed to be float, not None
+                if lat is None or lon is None:
+                    response = "Location not found. Try help."
+                else:
+                    timezone = get_timezone(lat, lon)
+                    weather_data, updated = fetch_weather(lat, lon, address, user_agent)
+                    logger.info(
+                        '%s Resolved "%s" to "%s". location cached: %s. '
+                        + "Weatherdata: %s. o:%s, ^:%s, £:%s, ¤:%s",
+                        addr[0],
+                        user_input,
+                        address,
+                        bool(cached_location),
+                        updated,
+                        bool(oneliner),
+                        bool(imperial),
+                        bool(beaufort),
+                        bool(wind_chill),
+                    )
+
+                    if not oneliner:
+                        response = format_meteogram(
+                            weather_data,
+                            lat,
+                            lon,
+                            imperial=imperial,
+                            beaufort=beaufort,
+                            screenwidth=screenwidth,
+                            wind_chill=wind_chill,
+                            timezone=timezone,
+                        )
+                        response += random_message(motdlist)
+                    else:
+                        response = format_oneliner(
+                            weather_data,
+                            timezone=timezone,
+                            imperial=imperial,
+                            beaufort=beaufort,
+                            wind_chill=wind_chill,
+                        )
+
+    finally:
+        writer.write(response.encode())
+        logger.debug("%s Replied with %s bytes. Weatherdata: %s", addr[0], len(response), updated)
+        await writer.drain()
+        writer.close()
+
+        if last_reply_file:
+            try:
+                with open(last_reply_file, mode="w", encoding="utf-8") as f:
+                    f.write(f"{addr[0]} {user_input}\n\n{response}")
+            except OSError as err:
+                logger.warning("Failed to write last reply file: %s", err)
+
+
+async def start_server(args: argparse.Namespace) -> None:
+    """Start server and bind to port."""
+    global r, geolocator, denylist, motdlist, user_agent
+
+    # Load configuration
+    denylist = load_deny_list()
+    motdlist = load_motd_list()
+    user_agent = load_user_agent()
+    geolocator = Nominatim(user_agent=user_agent, timeout=3)
+
+    # Connect to Redis
+    logger.info(f"Connecting to redis host {args.redis_host} port {args.redis_port}")
+    r = redis.Redis(host=args.redis_host, port=args.redis_port)
+    try:
+        r.ping()
+    except ConnectionError:
+        logger.error("Unable to connect to redis at <%s>:<%s>", args.redis_host, args.redis_port)
+        sys.exit(1)
+    logger.info("Redis connected")
+
+    logger.info("Starting on port %s", args.port)
+    server: asyncio.AbstractServer = await asyncio.start_server(
+        handle_request, args.host, args.port
+    )
+
+    addr = server.sockets[0].getsockname()
+    logger.info("Ready to serve on address %s:%s", addr[0], addr[1])
+
+    async with server:
+        await server.serve_forever()
