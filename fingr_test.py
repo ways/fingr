@@ -8,31 +8,38 @@ import pytz
 import redis
 from fakeredis import TcpFakeServer
 
-import fingr
+from fingr.utils import wind_direction, clean_input
+from fingr.location import resolve_location, get_timezone
+from fingr.config import random_message
+from fingr.formatting import sun_up
+from geopy.geocoders import Nominatim
 
 verbose = True
+
+# Initialize geolocator for tests
+geolocator = Nominatim(user_agent="fingr_test", timeout=3)
 
 
 class TestServerMethods(unittest.TestCase):
     def test_wind_direction(self):
         """Test results from wind direction"""
-        symbol = fingr.wind_direction(123)
+        symbol = wind_direction(123)
         self.assertEqual(symbol, "SE")
-        symbol = fingr.wind_direction(0)
+        symbol = wind_direction(0)
         self.assertEqual(symbol, " N")
-        symbol = fingr.wind_direction(290)
+        symbol = wind_direction(290)
         self.assertEqual(symbol, " W")
-        symbol = fingr.wind_direction(171)
+        symbol = wind_direction(171)
         self.assertEqual(symbol, " S")
-        symbol = fingr.wind_direction(333)
+        symbol = wind_direction(333)
         self.assertEqual(symbol, "NW")
 
     def test_clean_input(self):
         """Test results from clean_input"""
-        output = fingr.clean_input(";:")
+        output = clean_input(";:")
         self.assertNotIn(";", output)
 
-        output = fingr.clean_input("Ås")
+        output = clean_input("Ås")
         self.assertIn("Å", output)
 
     def test_resolve_location(self):
@@ -44,8 +51,8 @@ class TestServerMethods(unittest.TestCase):
 
         r = redis.Redis(host=server_address[0], port=server_address[1])
 
-        latitude, longitude, address, cached = fingr.resolve_location(
-            r, fingr.geolocator, data="Oslo/Norway"
+        latitude, longitude, address, cached = resolve_location(
+            r, geolocator, data="Oslo/Norway"
         )
         self.assertEqual(latitude, 59.9133301)
         self.assertEqual(longitude, 10.7389701)
@@ -57,8 +64,8 @@ class TestServerMethods(unittest.TestCase):
         counts = 0
         while msg1 is None and msg2 is None and counts < 100:
             counts += 1
-            msg1 = fingr.random_message(msglist)
-            msg2 = fingr.random_message(msglist)
+            msg1 = random_message(msglist)
+            msg2 = random_message(msglist)
             if msg1 != msg2:
                 break
 
@@ -67,12 +74,12 @@ class TestServerMethods(unittest.TestCase):
         self.assertIn(msg1.strip().replace("[", "").replace("]", ""), msglist)
 
     def test_get_timezone(self):
-        tz = fingr.get_timezone(lat=59, lon=11)
+        tz = get_timezone(lat=59, lon=11)
         self.assertEqual(tz.zone, "Europe/Oslo")
 
     def test_sun_up(self):
         dt = datetime.datetime.fromtimestamp(1727987676, tz=pytz.timezone("UTC"))
-        test = fingr.sun_up(latitude=59, longitude=11, date=dt)
+        test = sun_up(latitude=59, longitude=11, date=dt)
         self.assertFalse(test)
 
 
