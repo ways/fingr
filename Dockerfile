@@ -20,6 +20,7 @@ RUN apt-get update && \
 
 # Copy project files
 COPY pyproject.toml .
+COPY fingr/ fingr/
 COPY fingr.py .
 
 # Install dependencies with uv
@@ -41,6 +42,7 @@ COPY --from=builder /lib/x86_64-linux-gnu/libgcc_s.so.1* /lib/x86_64-linux-gnu/
 # Copy Python packages and application
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY motd.txt* deny.txt* useragent.txt* /app/
+COPY fingr/ /app/fingr/
 COPY fingr.py /app/
 
 WORKDIR /app

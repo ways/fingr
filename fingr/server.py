@@ -201,15 +201,22 @@ async def start_server(args: argparse.Namespace) -> None:
     user_agent = load_user_agent()
     geolocator = Nominatim(user_agent=user_agent, timeout=3)
 
-    # Connect to Redis
+    # Connect to Redis with retry
     logger.info(f"Connecting to redis host {args.redis_host} port {args.redis_port}")
     r = redis.Redis(host=args.redis_host, port=args.redis_port)
-    try:
-        r.ping()
-    except ConnectionError:
-        logger.error("Unable to connect to redis at <%s>:<%s>", args.redis_host, args.redis_port)
-        sys.exit(1)
-    logger.info("Redis connected")
+    max_retries = 10
+    for attempt in range(max_retries):
+        try:
+            r.ping()
+            logger.info("Redis connected")
+            break
+        except ConnectionError:
+            if attempt < max_retries - 1:
+                logger.warning("Redis not ready, retrying in 2 seconds... (attempt %d/%d)", attempt + 1, max_retries)
+                await asyncio.sleep(2)
+            else:
+                logger.error("Unable to connect to redis at <%s>:<%s>", args.redis_host, args.redis_port)
+                sys.exit(1)
 
     logger.info("Starting on port %s", args.port)
     server: asyncio.AbstractServer = await asyncio.start_server(
