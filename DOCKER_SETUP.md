@@ -104,3 +104,45 @@ curl http://localhost:9090/metrics
 # Open Grafana
 open http://localhost:3000  # Login: admin/admin
 ```
+
+## ✅ CONFIRMED WORKING WITH PODMAN
+
+Tested and verified on 2025-12-15:
+
+### Test Results
+
+```bash
+cd /home/larsfp/workdir/fingr
+podman-compose up -d
+```
+
+✅ **All containers started successfully:**
+- redis: Up and healthy
+- fingr: Up on ports 7979 and 9090
+- prometheus: Up on port 9091 - **Mounts working correctly!**
+- grafana: Up on port 3000 - **Mounts working correctly!**
+
+✅ **Volume mounts verified:**
+- `/home/larsfp/workdir/fingr/etc/prometheus` → Container config loaded
+- `/home/larsfp/workdir/fingr/etc/grafana/provisioning` → Dashboard provisioned
+
+✅ **Services responding:**
+- Prometheus: http://localhost:9091 (healthy)
+- Grafana: http://localhost:3000 (version 12.3.0)
+
+### Key Changes for Podman Compatibility
+
+1. **Use `${PWD}` for absolute paths** - Resolves mount path correctly
+2. **Fully qualified image names** - Required for podman:
+   - `docker.io/prom/prometheus:latest`
+   - `docker.io/grafana/grafana:latest`
+
+### For Docker Users
+
+Docker should also work with these same settings. The `${PWD}` variable and fully qualified image names are compatible with both Docker and Podman.
+
+Just make sure you run from the project directory:
+```bash
+cd /path/to/fingr
+docker compose up
+```
