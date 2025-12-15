@@ -34,9 +34,9 @@ def fetch_weather(
             api_requests_total.labels(status="success").inc()
 
         # Track weather data freshness
-        if updated:
+        if updated == "Data-Modified":
             weather_data_freshness.labels(status="updated").inc()
-        else:
+        elif updated == "Data-Not-Expired":
             weather_data_freshness.labels(status="cached").inc()
 
         return forecast, updated
