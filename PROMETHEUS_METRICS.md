@@ -87,3 +87,43 @@ Coordinates are bucketed into 5-degree increments to:
 - Enable meaningful geographic visualization
 
 For example, Oslo (59.9, 10.7) → bucket (55.0, 10.0)
+
+## Troubleshooting
+
+### Using Podman instead of Docker
+
+If you're using podman, use `podman-compose` instead:
+
+```bash
+podman-compose up
+```
+
+### Permission/Mount Issues
+
+The compose file includes `:z` flags for SELinux compatibility. If you still get mount errors:
+
+1. Make sure you're running from the project root directory:
+   ```bash
+   cd /home/larsfp/workdir/fingr
+   podman-compose up
+   ```
+
+2. Check that the config directories exist:
+   ```bash
+   ls -la etc/prometheus/
+   ls -la etc/grafana/provisioning/
+   ```
+
+3. If using rootless podman, ensure proper permissions:
+   ```bash
+   chmod -R 755 etc/
+   ```
+
+### Container Not Starting
+
+Check logs for specific services:
+```bash
+podman-compose logs fingr
+podman-compose logs prometheus
+podman-compose logs grafana
+```
