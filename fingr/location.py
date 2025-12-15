@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 # Type aliases
 RedisClient = Optional[redis.Redis]
-Timezone = Union[datetime.tzinfo, type(pytz.UTC), type(pytz.timezone("UTC"))]
+Timezone = Union[datetime.tzinfo, pytz.tzinfo.BaseTzInfo]
 
 # Global timezone finder instance
 timezone_finder: timezonefinder.TimezoneFinder = timezonefinder.TimezoneFinder()

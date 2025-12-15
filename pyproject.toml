@@ -41,6 +41,7 @@ dev = [
     "types-pytz",
     "types-redis",
     "fakeredis",
+    "ty",
 ]
 
 [project.urls]
@@ -80,7 +81,7 @@ indent-style = "space"
 # Tox configuration
 [tool.tox]
 requires = ["tox>=4", "tox-uv"]
-env_list = ["py", "ruff-format", "ruff-check", "bandit"]
+env_list = ["py", "ruff-format", "ruff-check", "bandit", "ty"]
 
 [tool.tox.env_run_base]
 description = "Run unit tests"
@@ -106,3 +107,8 @@ commands = [["mypy", "--follow-imports", "skip", "{toxinidir}/fingr.py"]]
 description = "Check for security issues"
 deps = ["bandit"]
 commands = [["bandit", "{toxinidir}/fingr.py"]]
+
+[tool.tox.env.ty]
+description = "Type check with ty"
+deps = ["ty"]
+commands = [["ty", "check", "{toxinidir}/fingr/", "{toxinidir}/fingr.py"]]

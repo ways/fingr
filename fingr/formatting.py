@@ -11,7 +11,7 @@ from .utils import wind_direction
 from .weather import calculate_wind_chill
 
 # Type aliases
-Timezone = Union[datetime.tzinfo, type(pytz.UTC), type(pytz.timezone("UTC"))]
+Timezone = Union[datetime.tzinfo, pytz.tzinfo.BaseTzInfo]
 
 weather_legend: str = (
     "\nLegend left axis:   - Sunny   ^ Scattered   = Clouded   =V= Thunder   # Fog"
