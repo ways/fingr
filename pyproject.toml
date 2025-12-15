@@ -92,22 +92,22 @@ commands = [["python3", "-m", "unittest", "fingr_test.py"]]
 [tool.tox.env.ruff-check]
 description = "Run ruff linter"
 deps = ["ruff"]
-commands = [["ruff", "check", "--fix", "{toxinidir}/fingr.py"]]
+commands = [["ruff", "check", "--fix", "{toxinidir}/fingr/", "{toxinidir}/fingr.py"]]
 
 [tool.tox.env.ruff-format]
 description = "Check code formatting with ruff"
 deps = ["ruff"]
-commands = [["ruff", "format", "{toxinidir}/fingr.py"]]
+commands = [["ruff", "format", "{toxinidir}/fingr/", "{toxinidir}/fingr.py"]]
 
 [tool.tox.env.mypy]
 description = "Check typing"
 deps = ["mypy", "types-pytz"]
-commands = [["mypy", "--follow-imports", "skip", "{toxinidir}/fingr.py"]]
+commands = [["mypy", "--follow-imports", "skip", "{toxinidir}/fingr/", "{toxinidir}/fingr.py"]]
 
 [tool.tox.env.bandit]
 description = "Check for security issues"
 deps = ["bandit"]
-commands = [["bandit", "{toxinidir}/fingr.py"]]
+commands = [["bandit", "{toxinidir}/fingr/", "{toxinidir}/fingr.py"]]
 
 [tool.tox.env.ty]
 description = "Type check with ty"

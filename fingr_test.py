@@ -7,12 +7,12 @@ from threading import Thread
 import pytz
 import redis
 from fakeredis import TcpFakeServer
+from geopy.geocoders import Nominatim
 
-from fingr.utils import wind_direction, clean_input
-from fingr.location import resolve_location, get_timezone
 from fingr.config import random_message
 from fingr.formatting import sun_up
-from geopy.geocoders import Nominatim
+from fingr.location import get_timezone, resolve_location
+from fingr.utils import clean_input, wind_direction
 
 verbose = True
 
