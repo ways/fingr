@@ -6,7 +6,7 @@ This document describes the Prometheus metrics added to fingr and how to use the
 
 ```bash
 # Start all services (fingr, redis, prometheus, grafana)
-docker compose up
+podman-compose up
 
 # Access services:
 # - Fingr: finger oslo@localhost (port 7979)
