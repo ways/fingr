@@ -51,9 +51,7 @@ class TestServerMethods(unittest.TestCase):
 
         r = redis.Redis(host=server_address[0], port=server_address[1])
 
-        latitude, longitude, address, cached = resolve_location(
-            r, geolocator, data="Oslo/Norway"
-        )
+        latitude, longitude, address, cached = resolve_location(r, geolocator, data="Oslo/Norway")
         self.assertEqual(latitude, 59.9133301)
         self.assertEqual(longitude, 10.7389701)
         self.assertEqual(address, "Oslo, Norway")

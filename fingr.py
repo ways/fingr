@@ -10,6 +10,8 @@ import asyncio
 import logging
 import warnings
 
+from fingr.server import start_server
+
 # Quiet the specific pysolar leap-second message so it doesn't spam logs
 warnings.filterwarnings(
     "ignore",
@@ -18,8 +20,6 @@ warnings.filterwarnings(
     module=r"pysolar\.solartime",
 )
 
-from fingr import __license__, __url__, __version__
-from fingr.server import start_server
 
 def main() -> None:
     """Parse arguments and start the server."""

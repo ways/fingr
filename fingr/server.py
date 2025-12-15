@@ -212,10 +212,16 @@ async def start_server(args: argparse.Namespace) -> None:
             break
         except ConnectionError:
             if attempt < max_retries - 1:
-                logger.warning("Redis not ready, retrying in 2 seconds... (attempt %d/%d)", attempt + 1, max_retries)
+                logger.warning(
+                    "Redis not ready, retrying in 2 seconds... (attempt %d/%d)",
+                    attempt + 1,
+                    max_retries,
+                )
                 await asyncio.sleep(2)
             else:
-                logger.error("Unable to connect to redis at <%s>:<%s>", args.redis_host, args.redis_port)
+                logger.error(
+                    "Unable to connect to redis at <%s>:<%s>", args.redis_host, args.redis_port
+                )
                 sys.exit(1)
 
     logger.info("Starting on port %s", args.port)
