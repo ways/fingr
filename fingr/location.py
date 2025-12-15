@@ -3,7 +3,7 @@
 import datetime
 import logging
 import socket
-from typing import Optional, Tuple, Union
+from typing import Any, Optional, Tuple, Union
 
 import pytz  # type: ignore[import-untyped]
 import redis
@@ -51,7 +51,7 @@ def resolve_location(
 
     # Geocode the location
     try:
-        coordinate = geolocator.geocode(data, language="en")
+        coordinate: Any = geolocator.geocode(data, language="en")
     except socket.timeout as err:
         logger.warning("Geocoding service timeout: %s", err)
         return None, None, "No service", False
@@ -59,9 +59,11 @@ def resolve_location(
     if not coordinate:
         return None, None, "No location found", False
 
-    lat = coordinate.latitude
-    lon = coordinate.longitude
-    address = coordinate.address if isinstance(coordinate.address, str) else str(coordinate.address)
+    lat: float = coordinate.latitude
+    lon: float = coordinate.longitude
+    address: str = (
+        coordinate.address if isinstance(coordinate.address, str) else str(coordinate.address)
+    )
 
     # Store to redis cache as <search>: "lat|lon|address"
     if redis_client is not None:

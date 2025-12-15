@@ -21,7 +21,8 @@ weather_legend: str = (
 
 def sun_up(latitude: float, longitude: float, date: datetime.datetime) -> bool:
     """Return symbols showing if sun is up at a place and time."""
-    return 0 < pysolar.solar.get_altitude(latitude, longitude, date)  # type: ignore[attr-defined]
+    altitude: float = pysolar.solar.get_altitude(latitude, longitude, date)  # type: ignore[attr-defined]
+    return 0 < altitude
 
 
 def format_meteogram(
@@ -70,8 +71,8 @@ def format_meteogram(
             interval.variables["air_temperature"].convert_to("fahrenheit")
         temperature: int = int(interval.variables["air_temperature"].value)
         if wind_chill:
-            wind_speed: int = int(interval.variables["wind_speed"].value)
-            temperature = calculate_wind_chill(temperature, wind_speed)
+            wind_speed_val: int = int(interval.variables["wind_speed"].value)
+            temperature = calculate_wind_chill(temperature, wind_speed_val)
 
         try:
             precipitation: int = math.ceil(float(interval.variables["precipitation_amount"].value))
@@ -129,8 +130,10 @@ def format_meteogram(
     for interval in forecast.data.intervals:
         temperature = int(interval.variables["air_temperature"].value)
         wind_from_direction: int = int(interval.variables["wind_from_direction"].value)
+        wind_speed: int
         if wind_chill:
-            temperature = calculate_wind_chill(temperature, wind_speed)  # type: ignore[name-defined]
+            wind_speed_for_chill: int = int(interval.variables["wind_speed"].value)
+            temperature = calculate_wind_chill(temperature, wind_speed_for_chill)
         if beaufort:
             interval.variables["wind_speed"].convert_to("beaufort")
         elif imperial:
@@ -306,7 +309,7 @@ def format_oneliner(
     """Return a one-line weather forecast. TODO: remove json, respect windchill, imperial, etc."""
     start_time: Optional[datetime.datetime] = None
     place: str = forecast.place.name
-    next6: Any = forecast.json["data"]["properties"]["timeseries"][0]["data"]["next_6_hours"]
+    next6: str = forecast.json["data"]["properties"]["timeseries"][0]["data"]["next_6_hours"]
 
     for interval in forecast.data.intervals:
         start_time = interval.start_time.replace(tzinfo=pytz.timezone("UTC")).astimezone(timezone)

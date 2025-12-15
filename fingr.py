@@ -23,7 +23,7 @@ warnings.filterwarnings(
 
 def main() -> None:
     """Parse arguments and start the server."""
-    parser = argparse.ArgumentParser(description="fingr")
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(description="fingr")
     parser.add_argument("-v", "--verbose", dest="verbose", action="store_true")
     parser.add_argument("-o", "--host", dest="host", default="127.0.0.1", action="store")
     parser.add_argument("-p", "--port", dest="port", default=7979, action="store")
@@ -32,7 +32,7 @@ def main() -> None:
     )
     parser.add_argument("-n", "--redis_port", dest="redis_port", default=6379, action="store")
 
-    args = parser.parse_args()
+    args: argparse.Namespace = parser.parse_args()
 
     # Configure logging
     logging.basicConfig(

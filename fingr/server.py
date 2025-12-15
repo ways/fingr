@@ -23,9 +23,9 @@ input_limit: int = 30
 last_reply_file: str = "/tmp/fingr"  # nosec B108
 
 # Global runtime objects (initialized in main)
-denylist = []
-motdlist = []
-user_agent = ""
+denylist: list[str] = []
+motdlist: list[str] = []
+user_agent: str = ""
 r: RedisClient = None
 geolocator: Optional[Nominatim] = None
 
@@ -119,7 +119,7 @@ async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWri
         if "~" in user_input:
             try:
                 user_input, width_str = user_input.split("~", 1)
-                screenwidth = max(80, min(int(width_str), 200))
+                screenwidth = int(max(80, min(int(width_str), 200)))
             except ValueError:
                 pass
 
@@ -128,6 +128,10 @@ async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWri
             response = service_usage()
 
         else:
+            lat: Optional[float]
+            lon: Optional[float]
+            address: str
+            cached_location: bool
             lat, lon, address, cached_location = resolve_location(r, geolocator, user_input)
             if not lat:
                 if address == "No service":
@@ -140,7 +144,8 @@ async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWri
                 if lat is None or lon is None:
                     response = "Location not found. Try help."
                 else:
-                    timezone = get_timezone(lat, lon)
+                    timezone: Any = get_timezone(lat, lon)
+                    weather_data: Any
                     weather_data, updated = fetch_weather(lat, lon, address, user_agent)
                     logger.info(
                         '%s Resolved "%s" to "%s". location cached: %s. '
@@ -204,7 +209,7 @@ async def start_server(args: argparse.Namespace) -> None:
     # Connect to Redis with retry
     logger.info(f"Connecting to redis host {args.redis_host} port {args.redis_port}")
     r = redis.Redis(host=args.redis_host, port=args.redis_port)
-    max_retries = 10
+    max_retries: int = 10
     for attempt in range(max_retries):
         try:
             r.ping()
@@ -229,7 +234,7 @@ async def start_server(args: argparse.Namespace) -> None:
         handle_request, args.host, args.port
     )
 
-    addr = server.sockets[0].getsockname()
+    addr: Tuple[str, int] = server.sockets[0].getsockname()  # type: ignore[assignment]
     logger.info("Ready to serve on address %s:%s", addr[0], addr[1])
 
     async with server:
