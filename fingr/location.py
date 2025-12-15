@@ -21,7 +21,7 @@ Timezone = Union[datetime.tzinfo, pytz.tzinfo.BaseTzInfo]
 timezone_finder: timezonefinder.TimezoneFinder = timezonefinder.TimezoneFinder()
 
 
-def get_timezone(lat: float, lon: float) -> Timezone:
+def get_timezone(lat: float, lon: float) -> pytz.tzinfo.BaseTzInfo:
     """Return timezone for coordinate."""
     tzname: Optional[str] = timezone_finder.timezone_at(lng=lon, lat=lat)
     if not tzname:
