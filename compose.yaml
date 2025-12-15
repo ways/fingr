@@ -39,7 +39,7 @@ services:
     ports:
       - '9091:9090'
     volumes:
-      - ./etc/prometheus:/etc/prometheus:ro,z
+      - ${PWD}/etc/prometheus:/etc/prometheus:ro
       - prometheus-data:/prometheus
     depends_on:
       - fingr
@@ -54,7 +54,7 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_INSTALL_PLUGINS=grafana-worldmap-panel
     volumes:
-      - ./etc/grafana/provisioning:/etc/grafana/provisioning:ro,z
+      - ${PWD}/etc/grafana/provisioning:/etc/grafana/provisioning:ro
       - grafana-data:/var/lib/grafana
     depends_on:
       - prometheus
