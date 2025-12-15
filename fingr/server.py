@@ -2,7 +2,6 @@
 
 import argparse
 import asyncio
-import logging
 import sys
 from typing import Any, Optional, Tuple
 
@@ -13,10 +12,11 @@ from redis.exceptions import ConnectionError
 from .config import load_deny_list, load_motd_list, load_user_agent, random_message
 from .formatting import format_meteogram, format_oneliner
 from .location import RedisClient, get_timezone, resolve_location
+from .logging import get_logger
 from .utils import clean_input
 from .weather import fetch_weather
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Global constants
 input_limit: int = 30
@@ -88,11 +88,11 @@ async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWri
         screenwidth: int = 80
         wind_chill: bool = False
 
-        logger.debug('%s GET "%s"', addr[0], user_input)
+        logger.debug("Request received", ip=addr[0], input=user_input)
 
         # Deny list
         if addr[0] in denylist:
-            logger.info('%s BLACKLISTED "%s"', addr[0], user_input)
+            logger.info("Request from blacklisted IP", ip=addr[0], input=user_input)
             response = "You have been blacklisted for excessive use. Send a mail to blacklist@falkp.no to be delisted."
             return
 
@@ -124,7 +124,7 @@ async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWri
                 pass
 
         if user_input == "help" or len(user_input) == 0:
-            logger.info("%s help", addr[0])
+            logger.info("Help requested", ip=addr[0])
             response = service_usage()
 
         else:
@@ -137,7 +137,7 @@ async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWri
                 if address == "No service":
                     response += "Error: address service down. You can still use coordinates."
                 else:
-                    logger.info('%s NOTFOUND "%s"', addr[0], user_input)
+                    logger.info("Location not found", ip=addr[0], input=user_input)
                     response += "Location not found. Try help."
             else:
                 # At this point lat and lon are guaranteed to be float, not None
@@ -148,17 +148,16 @@ async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWri
                     weather_data: Any
                     weather_data, updated = fetch_weather(lat, lon, address, user_agent)
                     logger.info(
-                        '%s Resolved "%s" to "%s". location cached: %s. '
-                        + "Weatherdata: %s. o:%s, ^:%s, £:%s, ¤:%s",
-                        addr[0],
-                        user_input,
-                        address,
-                        bool(cached_location),
-                        updated,
-                        bool(oneliner),
-                        bool(imperial),
-                        bool(beaufort),
-                        bool(wind_chill),
+                        "Request processed",
+                        ip=addr[0],
+                        input=user_input,
+                        address=address,
+                        location_cached=cached_location,
+                        weather_updated=updated,
+                        oneliner=oneliner,
+                        imperial=imperial,
+                        beaufort=beaufort,
+                        wind_chill=wind_chill,
                     )
 
                     if not oneliner:
@@ -184,7 +183,7 @@ async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWri
 
     finally:
         writer.write(response.encode())
-        logger.debug("%s Replied with %s bytes. Weatherdata: %s", addr[0], len(response), updated)
+        logger.debug("Response sent", ip=addr[0], bytes=len(response), weather_updated=updated)
         await writer.drain()
         writer.close()
 
@@ -193,7 +192,7 @@ async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWri
                 with open(last_reply_file, mode="w", encoding="utf-8") as f:
                     f.write(f"{addr[0]} {user_input}\n\n{response}")
             except OSError as err:
-                logger.warning("Failed to write last reply file: %s", err)
+                logger.warning("Failed to write last reply file", error=str(err))
 
 
 async def start_server(args: argparse.Namespace) -> None:
@@ -207,7 +206,7 @@ async def start_server(args: argparse.Namespace) -> None:
     geolocator = Nominatim(user_agent=user_agent, timeout=3)
 
     # Connect to Redis with retry
-    logger.info(f"Connecting to redis host {args.redis_host} port {args.redis_port}")
+    logger.info("Connecting to Redis", host=args.redis_host, port=args.redis_port)
     r = redis.Redis(host=args.redis_host, port=args.redis_port)
     max_retries: int = 10
     for attempt in range(max_retries):
@@ -218,24 +217,25 @@ async def start_server(args: argparse.Namespace) -> None:
         except ConnectionError:
             if attempt < max_retries - 1:
                 logger.warning(
-                    "Redis not ready, retrying in 2 seconds... (attempt %d/%d)",
-                    attempt + 1,
-                    max_retries,
+                    "Redis not ready, retrying",
+                    attempt=attempt + 1,
+                    max_retries=max_retries,
+                    retry_delay=2,
                 )
                 await asyncio.sleep(2)
             else:
                 logger.error(
-                    "Unable to connect to redis at <%s>:<%s>", args.redis_host, args.redis_port
+                    "Unable to connect to Redis", host=args.redis_host, port=args.redis_port
                 )
                 sys.exit(1)
 
-    logger.info("Starting on port %s", args.port)
+    logger.info("Starting server", port=args.port)
     server: asyncio.AbstractServer = await asyncio.start_server(
         handle_request, args.host, args.port
     )
 
     addr: Tuple[str, int] = server.sockets[0].getsockname()  # type: ignore[assignment]
-    logger.info("Ready to serve on address %s:%s", addr[0], addr[1])
+    logger.info("Server ready", host=addr[0], port=addr[1])
 
     async with server:
         await server.serve_forever()

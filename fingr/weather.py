@@ -4,6 +4,10 @@ from typing import Any, Tuple
 
 from metno_locationforecast import Forecast, Place  # type: ignore[import-untyped]
 
+from .logging import get_logger
+
+logger = get_logger(__name__)
+
 
 def fetch_weather(
     lat: float, lon: float, address: str = "", user_agent: str = ""
@@ -13,10 +17,7 @@ def fetch_weather(
     forecast: Forecast = Forecast(location, user_agent=user_agent)
     updated: Any = forecast.update()
     if forecast.json["status_code"] != 200:
-        import logging
-
-        logger = logging.getLogger(__name__)
-        logger.error("Forecast response: %s", forecast.json["status_code"])
+        logger.error("Forecast response error", status_code=forecast.json["status_code"])
     return forecast, updated
 
 

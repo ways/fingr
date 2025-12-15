@@ -1,7 +1,6 @@
 """Location resolution and timezone handling."""
 
 import datetime
-import logging
 import socket
 from typing import Any, Optional, Tuple, Union
 
@@ -11,7 +10,9 @@ import timezonefinder  # type: ignore[import-untyped]
 from geopy.geocoders import Nominatim  # type: ignore[import-untyped]
 from redis.exceptions import RedisError
 
-logger = logging.getLogger(__name__)
+from .logging import get_logger
+
+logger = get_logger(__name__)
 
 # Type aliases
 RedisClient = Optional[redis.Redis]
@@ -56,7 +57,7 @@ def resolve_location(
     try:
         coordinate: Any = geolocator.geocode(data, language="en")
     except socket.timeout as err:
-        logger.warning("Geocoding service timeout: %s", err)
+        logger.warning("Geocoding service timeout", error=str(err))
         return None, None, "No service", False
 
     if not coordinate:
@@ -77,6 +78,6 @@ def resolve_location(
                 "|".join([str(lat), str(lon), address]),
             )
         except RedisError as err:
-            logger.warning("Redis cache write failed: %s", err)
+            logger.warning("Redis cache write failed", error=str(err))
 
     return lat, lon, address, False

@@ -31,6 +31,7 @@ dependencies = [
     "pysolar==0.11",
     "timezonefinder~=6.5.0",
     "pytz==2024.2",
+    "structlog>=24.1.0",
 ]
 
 [project.optional-dependencies]

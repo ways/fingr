@@ -7,9 +7,9 @@ This uses the modular structure from fingr/ package.
 
 import argparse
 import asyncio
-import logging
 import warnings
 
+from fingr.logging import configure_logging
 from fingr.server import start_server
 
 # Quiet the specific pysolar leap-second message so it doesn't spam logs
@@ -35,9 +35,7 @@ def main() -> None:
     args: argparse.Namespace = parser.parse_args()
 
     # Configure logging
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S %z"
-    )
+    configure_logging(verbose=args.verbose)
 
     asyncio.run(start_server(args))
 

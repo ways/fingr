@@ -67,8 +67,6 @@ class TestServerMethods(unittest.TestCase):
             if msg1 != msg2:
                 break
 
-        if verbose:
-            print("Count", counts)
         self.assertIn(msg1.strip().replace("[", "").replace("]", ""), msglist)
 
     def test_get_timezone(self):

@@ -1,11 +1,12 @@
 """Configuration loading utilities."""
 
-import logging
 import os
 import secrets
 from typing import List
 
-logger = logging.getLogger(__name__)
+from .logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def load_user_agent() -> str:
@@ -15,12 +16,13 @@ def load_user_agent() -> str:
     try:
         with open(uafile, encoding="utf-8") as f:
             for line in f:
+                logger.info("Read useragent file", file=uafile)
                 return line.strip()
-        logger.info("Read useragent file <%s>", uafile)
     except FileNotFoundError:
         logger.warning(
-            "Unable to read useragent file <%s>. This is required by upstream API. You risk getting your IP banned.",
-            uafile,
+            "Unable to read useragent file - required by upstream API",
+            file=uafile,
+            risk="IP may get banned",
         )
     return "default fingr useragent"
 
@@ -42,9 +44,9 @@ def load_motd_list() -> List[str]:
                     continue
                 motdlist.append(line.strip())
 
-        logger.info("Read motd file with <%s> lines.", count)
+        logger.info("Read motd file", lines=count)
     except FileNotFoundError as err:
-        logger.warning("Unable to read motd list, <%s/%s>. Warning: %s", os.getcwd(), motdfile, err)
+        logger.warning("Unable to read motd list", cwd=os.getcwd(), file=motdfile, error=str(err))
 
     return motdlist
 
@@ -73,8 +75,8 @@ def load_deny_list() -> List[str]:
                     continue
                 denylist.append(line.strip())
 
-        logger.info("Read denylist with %s lines.", count)
+        logger.info("Read denylist", lines=count)
     except FileNotFoundError as err:
-        logger.warning("Unable to read deny list, <%s/%s>. Warning: %s", os.getcwd(), denyfile, err)
+        logger.warning("Unable to read deny list", cwd=os.getcwd(), file=denyfile, error=str(err))
 
     return denylist
