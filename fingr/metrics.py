@@ -87,7 +87,7 @@ def track_time(histogram: Histogram) -> Generator[None, None, None]:
 def bucket_coordinate(value: float, bucket_size: float = 5.0) -> str:
     """Bucket coordinates for grouping in metrics."""
     bucket = int(value / bucket_size) * bucket_size
-    return f"{bucket:.1f}"
+    return f"{bucket:.3f}"
 
 
 def record_location_request(lat: float, lon: float, address: str) -> None:
