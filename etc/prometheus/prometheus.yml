@@ -1,0 +1,12 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'fingr-monitor'
+
+scrape_configs:
+  - job_name: 'fingr'
+    static_configs:
+      - targets: ['fingr:9090']
+        labels:
+          service: 'fingr'

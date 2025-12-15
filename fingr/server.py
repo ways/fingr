@@ -7,12 +7,20 @@ from typing import Any, Optional, Tuple
 
 import redis
 from geopy.geocoders import Nominatim  # type: ignore[import-untyped]
+from prometheus_client import start_http_server
 from redis.exceptions import ConnectionError
 
 from .config import load_deny_list, load_motd_list, load_user_agent, random_message
 from .formatting import format_meteogram, format_oneliner
 from .location import RedisClient, get_timezone, resolve_location
 from .logging import get_logger
+from .metrics import (
+    formatting_duration,
+    record_location_request,
+    request_duration,
+    requests_total,
+    track_time,
+)
 from .utils import clean_input
 from .weather import fetch_weather
 
@@ -81,118 +89,130 @@ async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWri
     imperial: bool = False
     beaufort: bool = False
     oneliner: bool = False
+    request_status: str = "success"
 
-    try:
-        user_input: str = clean_input(data.decode())
-        addr: Tuple[str, int] = writer.get_extra_info("peername")  # type: ignore[assignment]
-        screenwidth: int = 80
-        wind_chill: bool = False
+    with track_time(request_duration):
+        try:
+            user_input: str = clean_input(data.decode())
+            addr: Tuple[str, int] = writer.get_extra_info("peername")  # type: ignore[assignment]
+            screenwidth: int = 80
+            wind_chill: bool = False
 
-        logger.debug("Request received", ip=addr[0], input=user_input)
+            logger.debug("Request received", ip=addr[0], input=user_input)
 
-        # Deny list
-        if addr[0] in denylist:
-            logger.info("Request from blacklisted IP", ip=addr[0], input=user_input)
-            response = "You have been blacklisted for excessive use. Send a mail to blacklist@falkp.no to be delisted."
-            return
+            # Deny list
+            if addr[0] in denylist:
+                logger.info("Request from blacklisted IP", ip=addr[0], input=user_input)
+                response = "You have been blacklisted for excessive use. Send a mail to blacklist@falkp.no to be delisted."
+                request_status = "blacklisted"
+                return
 
-        if user_input.startswith("o:"):
-            oneliner = True
-            user_input = user_input.replace("o:", "")
+            if user_input.startswith("o:"):
+                oneliner = True
+                user_input = user_input.replace("o:", "")
 
-        # Imperial
-        if user_input.startswith("^"):
-            user_input = user_input[1:]
-            imperial = True
+            # Imperial
+            if user_input.startswith("^"):
+                user_input = user_input[1:]
+                imperial = True
 
-        # Wind speed in the Beaufort scale
-        if user_input.startswith("£"):
-            user_input = user_input[1:]
-            beaufort = True
+            # Wind speed in the Beaufort scale
+            if user_input.startswith("£"):
+                user_input = user_input[1:]
+                beaufort = True
 
-        # Wind chill
-        if user_input.startswith("¤"):
-            user_input = user_input[1:]
-            wind_chill = True
+            # Wind chill
+            if user_input.startswith("¤"):
+                user_input = user_input[1:]
+                wind_chill = True
 
-        # Parse screen width
-        if "~" in user_input:
-            try:
-                user_input, width_str = user_input.split("~", 1)
-                screenwidth = int(max(80, min(int(width_str), 200)))
-            except ValueError:
-                pass
+            # Parse screen width
+            if "~" in user_input:
+                try:
+                    user_input, width_str = user_input.split("~", 1)
+                    screenwidth = int(max(80, min(int(width_str), 200)))
+                except ValueError:
+                    pass
 
-        if user_input == "help" or len(user_input) == 0:
-            logger.info("Help requested", ip=addr[0])
-            response = service_usage()
+            if user_input == "help" or len(user_input) == 0:
+                logger.info("Help requested", ip=addr[0])
+                response = service_usage()
+                request_status = "help"
 
-        else:
-            lat: Optional[float]
-            lon: Optional[float]
-            address: str
-            cached_location: bool
-            lat, lon, address, cached_location = resolve_location(r, geolocator, user_input)
-            if not lat:
-                if address == "No service":
-                    response += "Error: address service down. You can still use coordinates."
-                else:
-                    logger.info("Location not found", ip=addr[0], input=user_input)
-                    response += "Location not found. Try help."
             else:
-                # At this point lat and lon are guaranteed to be float, not None
-                if lat is None or lon is None:
-                    response = "Location not found. Try help."
-                else:
-                    timezone: Any = get_timezone(lat, lon)
-                    weather_data: Any
-                    weather_data, updated = fetch_weather(lat, lon, address, user_agent)
-                    logger.info(
-                        "Request processed",
-                        ip=addr[0],
-                        input=user_input,
-                        address=address,
-                        location_cached=cached_location,
-                        weather_updated=updated,
-                        oneliner=oneliner,
-                        imperial=imperial,
-                        beaufort=beaufort,
-                        wind_chill=wind_chill,
-                    )
-
-                    if not oneliner:
-                        response = format_meteogram(
-                            weather_data,
-                            lat,
-                            lon,
-                            imperial=imperial,
-                            beaufort=beaufort,
-                            screenwidth=screenwidth,
-                            wind_chill=wind_chill,
-                            timezone=timezone,
-                        )
-                        response += random_message(motdlist)
+                lat: Optional[float]
+                lon: Optional[float]
+                address: str
+                cached_location: bool
+                lat, lon, address, cached_location = resolve_location(r, geolocator, user_input)
+                if not lat:
+                    if address == "No service":
+                        response += "Error: address service down. You can still use coordinates."
+                        request_status = "service_error"
                     else:
-                        response = format_oneliner(
-                            weather_data,
-                            timezone=timezone,
+                        logger.info("Location not found", ip=addr[0], input=user_input)
+                        response += "Location not found. Try help."
+                        request_status = "location_not_found"
+                else:
+                    # At this point lat and lon are guaranteed to be float, not None
+                    if lat is None or lon is None:
+                        response = "Location not found. Try help."
+                        request_status = "location_not_found"
+                    else:
+                        # Record location request for geographic metrics
+                        record_location_request(lat, lon, address)
+
+                        timezone: Any = get_timezone(lat, lon)
+                        weather_data: Any
+                        weather_data, updated = fetch_weather(lat, lon, address, user_agent)
+                        logger.info(
+                            "Request processed",
+                            ip=addr[0],
+                            input=user_input,
+                            address=address,
+                            location_cached=cached_location,
+                            weather_updated=updated,
+                            oneliner=oneliner,
                             imperial=imperial,
                             beaufort=beaufort,
                             wind_chill=wind_chill,
                         )
 
-    finally:
-        writer.write(response.encode())
-        logger.debug("Response sent", ip=addr[0], bytes=len(response), weather_updated=updated)
-        await writer.drain()
-        writer.close()
+                        with track_time(formatting_duration):
+                            if not oneliner:
+                                response = format_meteogram(
+                                    weather_data,
+                                    lat,
+                                    lon,
+                                    imperial=imperial,
+                                    beaufort=beaufort,
+                                    screenwidth=screenwidth,
+                                    wind_chill=wind_chill,
+                                    timezone=timezone,
+                                )
+                                response += random_message(motdlist)
+                            else:
+                                response = format_oneliner(
+                                    weather_data,
+                                    timezone=timezone,
+                                    imperial=imperial,
+                                    beaufort=beaufort,
+                                    wind_chill=wind_chill,
+                                )
 
-        if last_reply_file:
-            try:
-                with open(last_reply_file, mode="w", encoding="utf-8") as f:
-                    f.write(f"{addr[0]} {user_input}\n\n{response}")
-            except OSError as err:
-                logger.warning("Failed to write last reply file", error=str(err))
+        finally:
+            requests_total.labels(status=request_status).inc()
+            writer.write(response.encode())
+            logger.debug("Response sent", ip=addr[0], bytes=len(response), weather_updated=updated)
+            await writer.drain()
+            writer.close()
+
+            if last_reply_file:
+                try:
+                    with open(last_reply_file, mode="w", encoding="utf-8") as f:
+                        f.write(f"{addr[0]} {user_input}\n\n{response}")
+                except OSError as err:
+                    logger.warning("Failed to write last reply file", error=str(err))
 
 
 async def start_server(args: argparse.Namespace) -> None:
@@ -228,6 +248,11 @@ async def start_server(args: argparse.Namespace) -> None:
                     "Unable to connect to Redis", host=args.redis_host, port=args.redis_port
                 )
                 sys.exit(1)
+
+    # Start Prometheus metrics server
+    metrics_port: int = 9090
+    start_http_server(metrics_port)
+    logger.info("Prometheus metrics server started", port=metrics_port)
 
     logger.info("Starting server", port=args.port)
     server: asyncio.AbstractServer = await asyncio.start_server(

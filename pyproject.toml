@@ -32,6 +32,7 @@ dependencies = [
     "timezonefinder~=6.5.0",
     "pytz==2024.2",
     "structlog>=24.1.0",
+    "prometheus-client~=0.21.0",
 ]
 
 [project.optional-dependencies]

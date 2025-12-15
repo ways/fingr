@@ -18,6 +18,7 @@ services:
     command: ["--verbose", "--redis_host", "redis"]
     ports:
       - '7979:7979'
+      - '9090:9090'  # Prometheus metrics
     volumes:
       - type: tmpfs
         target: /app/data
@@ -27,6 +28,41 @@ services:
     depends_on:
       - redis
 
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - '9091:9090'
+    volumes:
+      - ./etc/prometheus:/etc/prometheus
+      - prometheus-data:/prometheus
+    depends_on:
+      - fingr
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-worldmap-panel
+    volumes:
+      - ./etc/grafana/provisioning:/etc/grafana/provisioning
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
 volumes:
   cache:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
     driver: local
