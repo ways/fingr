@@ -30,7 +30,7 @@ def get_timezone(lat: float, lon: float) -> Timezone:
 
 
 def resolve_location(
-    redis_client: RedisClient, geolocator: Nominatim, data: str = "Oslo/Norway"
+    redis_client: RedisClient, geolocator: Optional[Nominatim], data: str = "Oslo/Norway"
 ) -> Tuple[Optional[float], Optional[float], str, bool]:
     """Get coordinates from location name. Return lat, long, name, cached."""
     # Check if coordinates
@@ -50,6 +50,9 @@ def resolve_location(
         return float(lat_str), float(lon_str), address, True
 
     # Geocode the location
+    if geolocator is None:
+        return None, None, "No service", False
+
     try:
         coordinate: Any = geolocator.geocode(data, language="en")
     except socket.timeout as err:
