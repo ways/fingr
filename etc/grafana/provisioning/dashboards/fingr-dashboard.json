@@ -565,7 +565,7 @@
                 "color": {
                   "fixed": "dark-green"
                 },
-                "opacity": 0.4,
+                "opacity": 1,
                 "rotation": {
                   "fixed": 0,
                   "max": 360,
