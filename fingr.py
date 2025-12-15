@@ -16,10 +16,10 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import pysolar.solar  # type: ignore[import-untyped]
 import pytz  # type: ignore[import-untyped]
 import redis
-from redis.exceptions import RedisError, ConnectionError
 import timezonefinder  # type: ignore[import-untyped]
 from geopy.geocoders import Nominatim  # type: ignore[import-untyped]
 from metno_locationforecast import Forecast, Place  # type: ignore[import-untyped]
+from redis.exceptions import ConnectionError, RedisError
 
 # Quiet the specific pysolar leap-second message so it doesn't spam logs
 warnings.filterwarnings(

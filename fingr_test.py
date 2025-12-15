@@ -1,12 +1,14 @@
 # https://docs.python.org/3/library/unittest.html
 
-import unittest
 import datetime
-import pytz
-import fingr
+import unittest
 from threading import Thread
-from fakeredis import TcpFakeServer
+
+import pytz
 import redis
+from fakeredis import TcpFakeServer
+
+import fingr
 
 verbose = True
 
