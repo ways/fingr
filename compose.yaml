@@ -29,7 +29,7 @@ services:
       - redis
 
   prometheus:
-    image: prom/prometheus:latest
+    image: docker.io/prom/prometheus:latest
     restart: unless-stopped
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -45,7 +45,7 @@ services:
       - fingr
 
   grafana:
-    image: grafana/grafana:latest
+    image: docker.io/grafana/grafana:latest
     restart: unless-stopped
     ports:
       - '3000:3000'
