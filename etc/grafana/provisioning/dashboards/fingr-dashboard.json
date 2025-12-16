@@ -722,8 +722,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.95, rate(fingr_location_resolution_duration_seconds_bucket[5m]))",
-          "legendFormat": "Location Resolution",
+          "expr": "histogram_quantile(0.95, rate(fingr_nominatim_lookup_duration_seconds_bucket[5m]))",
+          "legendFormat": "Nominatim Lookup",
           "refId": "A"
         },
         {
@@ -743,15 +743,6 @@
           "expr": "histogram_quantile(0.95, rate(fingr_formatting_duration_seconds_bucket[5m]))",
           "legendFormat": "Formatting",
           "refId": "C"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "histogram_quantile(0.95, rate(fingr_nominatim_lookup_duration_seconds_bucket[5m]))",
-          "legendFormat": "Nominatim Lookup",
-          "refId": "D"
         }
       ],
       "title": "Processing Time Breakdown (p95)",
