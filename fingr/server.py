@@ -12,11 +12,13 @@ from redis.exceptions import ConnectionError
 
 from .config import load_deny_list, load_motd_list, load_user_agent, random_message
 from .formatting import format_meteogram, format_oneliner
+from .geoip import init_geoip, lookup_ip_location
 from .location import RedisClient, get_timezone, resolve_location
 from .logging import get_logger
 from .metrics import (
     formatting_duration,
     record_location_request,
+    record_originator_request,
     request_duration,
     requests_total,
     track_time,
@@ -99,6 +101,18 @@ async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWri
             wind_chill: bool = False
 
             logger.debug("Request received", ip=addr[0], input=user_input)
+
+            # Lookup originator location from IP
+            orig_lat, orig_lon, orig_location = lookup_ip_location(addr[0])
+            if orig_lat is not None and orig_lon is not None:
+                record_originator_request(orig_lat, orig_lon, orig_location)
+                logger.debug(
+                    "Originator location tracked",
+                    ip=addr[0],
+                    location=orig_location,
+                    lat=orig_lat,
+                    lon=orig_lon,
+                )
 
             # Deny list
             if addr[0] in denylist:
@@ -224,6 +238,9 @@ async def start_server(args: argparse.Namespace) -> None:
     motdlist = load_motd_list()
     user_agent = load_user_agent()
     geolocator = Nominatim(user_agent=user_agent, timeout=3)
+
+    # Initialize GeoIP
+    init_geoip()
 
     # Connect to Redis with retry
     logger.info("Connecting to Redis", host=args.redis_host, port=args.redis_port)

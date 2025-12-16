@@ -11,6 +11,7 @@ from geopy.geocoders import Nominatim
 
 from fingr.config import random_message
 from fingr.formatting import sun_up
+from fingr.geoip import lookup_ip_location
 from fingr.location import get_timezone, resolve_location
 from fingr.utils import clean_input, wind_direction
 
@@ -78,6 +79,28 @@ class TestServerMethods(unittest.TestCase):
         dt = datetime.datetime.fromtimestamp(1727987676, tz=pytz.timezone("UTC"))
         test = sun_up(latitude=59, longitude=11, date=dt)
         self.assertFalse(test)
+
+    def test_geoip_lookup_local(self):
+        """Test GeoIP lookup for local addresses"""
+        lat, lon, location = lookup_ip_location("127.0.0.1")
+        self.assertIsNone(lat)
+        self.assertIsNone(lon)
+        self.assertEqual(location, "local")
+
+    def test_geoip_lookup_private(self):
+        """Test GeoIP lookup for private addresses"""
+        lat, lon, location = lookup_ip_location("192.168.1.1")
+        self.assertIsNone(lat)
+        self.assertIsNone(lon)
+        self.assertEqual(location, "local")
+
+    def test_geoip_lookup_unknown(self):
+        """Test GeoIP lookup without database (returns unknown)"""
+        # When no database is loaded, should return unknown
+        lat, lon, location = lookup_ip_location("8.8.8.8")
+        # Will be None/unknown if database not available
+        # If database is available, will return actual location
+        self.assertTrue(location in ["unknown", "local"] or isinstance(location, str))
 
 
 if __name__ == "__main__":

@@ -33,6 +33,7 @@ dependencies = [
     "pytz==2024.2",
     "structlog>=24.1.0",
     "prometheus-client~=0.21.0",
+    "geoip2~=4.8.0",
 ]
 
 [project.optional-dependencies]

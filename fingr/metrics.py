@@ -53,6 +53,12 @@ location_requests = Counter(
     ["latitude_bucket", "longitude_bucket", "address"],
 )
 
+originator_requests = Counter(
+    "fingr_originator_requests_total",
+    "Requests by originator geographic location",
+    ["latitude_bucket", "longitude_bucket", "location"],
+)
+
 # Processing time breakdown
 location_resolution_duration = Histogram(
     "fingr_location_resolution_duration_seconds",
@@ -100,4 +106,17 @@ def record_location_request(lat: float, lon: float, address: str) -> None:
         latitude_bucket=lat_bucket,
         longitude_bucket=lon_bucket,
         address=address_short,
+    ).inc()
+
+
+def record_originator_request(lat: float, lon: float, location: str) -> None:
+    """Record an originator request with bucketed coordinates."""
+    lat_bucket = bucket_coordinate(lat)
+    lon_bucket = bucket_coordinate(lon)
+    # Truncate location to avoid cardinality explosion
+    location_short = location[:50] if len(location) > 50 else location
+    originator_requests.labels(
+        latitude_bucket=lat_bucket,
+        longitude_bucket=lon_bucket,
+        location=location_short,
     ).inc()
