@@ -2,7 +2,6 @@
 
 import os
 import secrets
-from typing import List
 
 from .logging import get_logger
 
@@ -27,10 +26,10 @@ def load_user_agent() -> str:
     return "default fingr useragent"
 
 
-def load_motd_list() -> List[str]:
+def load_motd_list() -> list[str]:
     """Load message of the day list from file."""
     motdfile: str = "motd.txt"
-    motdlist: List[str] = []
+    motdlist: list[str] = []
     count: int = 0
 
     try:
@@ -51,17 +50,17 @@ def load_motd_list() -> List[str]:
     return motdlist
 
 
-def random_message(messages: List[str]) -> str:
+def random_message(messages: list[str]) -> str:
     """Pick a random message of the day."""
     if len(messages) == 0:
         return ""
     return "[" + messages[secrets.randbelow(len(messages))] + "]\n"
 
 
-def load_deny_list() -> List[str]:
+def load_deny_list() -> list[str]:
     """Load list of IPs to deny service from file."""
     denyfile: str = "deny.txt"
-    denylist: List[str] = []
+    denylist: list[str] = []
     count: int = 0
 
     try:

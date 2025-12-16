@@ -2,7 +2,7 @@
 
 import datetime
 import math
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 import pysolar.solar  # type: ignore[import-untyped]
 import pytz  # type: ignore[import-untyped]
@@ -41,7 +41,7 @@ def format_meteogram(
     output: str = ""
 
     # Init graph
-    graph: Dict[int, str] = {}
+    graph: dict[int, str] = {}
     tempheight: int = 11
     timeline: int = 13
     windline: int = 15
@@ -98,7 +98,7 @@ def format_meteogram(
         templow = temphigh - 1
 
     # Create temp range
-    temps: List[int] = []
+    temps: list[int] = []
     for t in range(int(temphigh), int(templow) - 1, tempstep):
         temps.append(t)
 
@@ -118,7 +118,7 @@ def format_meteogram(
             pass
 
     # create rainaxis #TODO: make this scale
-    rainaxis: List[str] = []
+    rainaxis: list[str] = []
     for r in range(rainheight, 0, rainstep):
         if r <= rainhigh:  # + 1
             rainaxis.append(f"{r:2.0f} mm ")
@@ -181,7 +181,7 @@ def format_meteogram(
         for i in range(1, tempheight):  # draw temp
             try:
                 # parse out numbers to be compared
-                temptomatch: List[int] = [temperature]
+                temptomatch: list[int] = [temperature]
                 tempingraph: int = int(graph[i][:3].strip())
 
                 if tempstep < -1:  # TODO: this should scale higher than one step
@@ -225,12 +225,6 @@ def format_meteogram(
                 else:  # if int(item['symbolnumber']) in [5,6,9,10,11,14]: #rain
                     rainsymbol = "|"
 
-                # if 0 > int(item['temperature']): #rain but cold
-                #     rainsymbol = "*"
-
-                # if verbose:
-                #     print("rainmax: ", rainmax,"i",i,"rain",rain)
-
                 # if overflow, print number at top
                 if rain > 10 and i == 1:
                     rainsymbol = f"{rain:2.0f}"
@@ -268,14 +262,14 @@ def format_meteogram(
 
 
 def print_units(
-    graph: Dict[int, str],
+    graph: dict[int, str],
     screenwidth: int,
     imperial: bool,
     beaufort: bool,
     windline: int,
     windstrline: int,
     timeline: int,
-) -> Dict[int, str]:
+) -> dict[int, str]:
     """Add units for rain, wind, etc."""
     graph[0] = " 'C" + str.rjust("Rain (mm) ", screenwidth - 3)
     if imperial:
@@ -306,7 +300,7 @@ def format_oneliner(
     offset: int = 0,
     wind_chill: bool = False,
 ) -> str:
-    """Return a one-line weather forecast. TODO: remove json, respect windchill, imperial, etc."""
+    """Return a one-line weather forecast."""
     start_time: Optional[datetime.datetime] = None
     place: str = forecast.place.name
     next6: str = forecast.json["data"]["properties"]["timeseries"][0]["data"]["next_6_hours"]
