@@ -71,7 +71,8 @@ class TestServerMethods(unittest.TestCase):
 
     def test_get_timezone(self):
         tz = get_timezone(lat=59, lon=11)
-        self.assertEqual(tz.zone, "Europe/Oslo")
+        # pytz timezone objects have a 'zone' attribute
+        self.assertEqual(tz.zone, "Europe/Oslo")  # type: ignore[attr-defined]
 
     def test_sun_up(self):
         dt = datetime.datetime.fromtimestamp(1727987676, tz=pytz.timezone("UTC"))

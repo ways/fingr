@@ -1,6 +1,6 @@
 """Weather data fetching and processing."""
 
-from typing import Any, Tuple
+from typing import Any
 
 from metno_locationforecast import Forecast, Place  # type: ignore[import-untyped]
 
@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 
 def fetch_weather(
     lat: float, lon: float, address: str = "", user_agent: str = ""
-) -> Tuple[Any, Any]:
+) -> tuple[Any, Any]:
     """Get forecast data using metno-locationforecast."""
     with track_time(weather_fetch_duration):
         location: Place = Place(address, lat, lon)
@@ -44,6 +44,15 @@ def fetch_weather(
 
 
 def calculate_wind_chill(temperature: float, wind_speed: float) -> int:
+    """Calculate wind chill temperature using the formula.
+
+    Args:
+        temperature: Temperature in Celsius
+        wind_speed: Wind speed in m/s
+
+    Returns:
+        Wind chill temperature as integer
+    """
     return int(
         13.12
         + (0.615 * float(temperature))

@@ -3,7 +3,7 @@
 import argparse
 import asyncio
 import sys
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 
 import redis
 from geopy.geocoders import Nominatim  # type: ignore[import-untyped]
@@ -94,7 +94,7 @@ async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWri
     with track_time(request_duration):
         try:
             user_input: str = clean_input(data.decode())
-            addr: Tuple[str, int] = writer.get_extra_info("peername")  # type: ignore[assignment]
+            addr: tuple[str, int] = writer.get_extra_info("peername")  # type: ignore[assignment]
             screenwidth: int = 80
             wind_chill: bool = False
 
@@ -259,7 +259,7 @@ async def start_server(args: argparse.Namespace) -> None:
         handle_request, args.host, args.port
     )
 
-    addr: Tuple[str, int] = server.sockets[0].getsockname()  # type: ignore[assignment]
+    addr: tuple[str, int] = server.sockets[0].getsockname()  # type: ignore[assignment]
     logger.info("Server ready", host=addr[0], port=addr[1])
 
     async with server:

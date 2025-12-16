@@ -2,7 +2,7 @@
 
 import datetime
 import socket
-from typing import Any, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 import pytz  # type: ignore[import-untyped]
 import redis
@@ -38,7 +38,7 @@ def get_timezone(lat: float, lon: float) -> Timezone:
 
 def resolve_location(
     redis_client: RedisClient, geolocator: Optional[Nominatim], data: str = "Oslo/Norway"
-) -> Tuple[Optional[float], Optional[float], str, bool]:
+) -> tuple[Optional[float], Optional[float], str, bool]:
     """Get coordinates from location name. Return lat, long, name, cached."""
     with track_time(location_resolution_duration):
         # Check if coordinates
