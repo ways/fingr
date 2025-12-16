@@ -11,7 +11,12 @@ from geopy.geocoders import Nominatim  # type: ignore[import-untyped]
 from redis.exceptions import RedisError
 
 from .logging import get_logger
-from .metrics import location_cache_operations, location_resolution_duration, track_time
+from .metrics import (
+    location_cache_operations,
+    location_resolution_duration,
+    nominatim_lookup_duration,
+    track_time,
+)
 
 logger = get_logger(__name__)
 
@@ -62,7 +67,8 @@ def resolve_location(
             return None, None, "No service", False
 
         try:
-            coordinate: Any = geolocator.geocode(data, language="en")
+            with track_time(nominatim_lookup_duration):
+                coordinate: Any = geolocator.geocode(data, language="en")
         except socket.timeout as err:
             logger.warning("Geocoding service timeout", error=str(err))
             return None, None, "No service", False

@@ -72,6 +72,12 @@ formatting_duration = Histogram(
     buckets=(0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0),
 )
 
+nominatim_lookup_duration = Histogram(
+    "fingr_nominatim_lookup_duration_seconds",
+    "Nominatim geocoding lookup duration in seconds",
+    buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0),
+)
+
 
 @contextmanager
 def track_time(histogram: Histogram) -> Generator[None, None, None]:
