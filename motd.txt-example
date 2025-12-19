@@ -1,6 +1,6 @@
 # Message to show below forecast. One per line.
 Weather forecast from yr.no, delivered by the Norwegian Meteorological Institute and the NRK.
-News: This service has been rewritten due to API changes. Check help if you experience problems.
+Location data is © OpenStreetMap contributors
 Tip: You can use more advanced location searches than before. Check help.
 Tip: You can ask for wind chill. Add ¤ in front of location name.
-Tip: You can search by coordinates. Check help.
+Tip: You can search by coordinates. Check help (finger help@graph.no)
