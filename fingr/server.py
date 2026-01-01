@@ -12,7 +12,7 @@ from prometheus_client import start_http_server
 from .config import load_deny_list, load_motd_list, load_user_agent, random_message
 from .formatting import format_meteogram, format_oneliner
 from .location import RedisClient, get_timezone, resolve_location
-from .logging import get_logger
+from .log import get_logger
 from .metrics import (
     formatting_duration,
     record_location_request,

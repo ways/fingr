@@ -7,7 +7,7 @@ import argparse
 import asyncio
 import warnings
 
-from fingr.logging import configure_logging
+from fingr.log import configure_logging
 from fingr.server import start_server
 
 # Quiet the specific pysolar leap-second message so it doesn't spam logs

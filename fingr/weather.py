@@ -4,7 +4,7 @@ from typing import Any
 
 from metno_locationforecast import Forecast, Place  # type: ignore[import-untyped]
 
-from .logging import get_logger
+from .log import get_logger
 from .metrics import (
     api_request_duration,
     api_requests_total,

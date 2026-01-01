@@ -10,7 +10,7 @@ import timezonefinder  # type: ignore[import-untyped]
 from geopy.geocoders import Nominatim  # type: ignore[import-untyped]
 from redis.exceptions import ConnectionError, RedisError
 
-from .logging import get_logger
+from .log import get_logger
 from .metrics import location_cache_operations, location_resolution_duration, track_time
 
 logger = get_logger(__name__)
