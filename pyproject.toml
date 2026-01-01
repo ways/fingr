@@ -108,7 +108,7 @@ commands = [["mypy", "--follow-imports", "skip", "{toxinidir}/fingr/", "{toxinid
 [tool.tox.env.bandit]
 description = "Check for security issues"
 deps = ["bandit"]
-commands = [["bandit", "{toxinidir}/fingr/", "{toxinidir}/fingr.py"]]
+commands = [["bandit", "-r", "{toxinidir}/fingr/", "{toxinidir}/fingr.py"]]
 
 [tool.tox.env.ty]
 description = "Type check with ty"
