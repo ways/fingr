@@ -2,7 +2,7 @@
 # Run: docker run -it --rm fingr:latest
 
 FROM ubuntu:24.04
-COPY --from=ghcr.io/astral-sh/uv:sha256:15f68a476b768083505fe1dbfcc998344d0135f0ca1b8465c4760b323904f05a /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.9 /uv /uvx /bin/
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
