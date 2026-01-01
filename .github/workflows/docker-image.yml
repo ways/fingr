@@ -39,6 +39,20 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
 
+      - name: Build an image from Dockerfile
+        run: docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}:${{ github.sha }} . && docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}:${{ github.sha }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}:latest
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}:${{ github.sha }}
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+
       - name: Log in to the Container registry
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3.3.0
@@ -47,14 +61,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
-        id: push
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+      - name: Tag metadata variants
+        run: |
+          while IFS= read -r tag; do
+            docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}:${{ github.sha }} "$tag"
+          done <<< "${{ steps.meta.outputs.tags }}"
+
+      - name: Push Docker image
+        if: github.event_name != 'pull_request'
+        run: |
+          while IFS= read -r tag; do
+            docker push "$tag"
+          done <<< "${{ steps.meta.outputs.tags }}"
+
 
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v1
