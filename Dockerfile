@@ -1,51 +1,34 @@
-# Build: docker build -t fingr .
+# Build: docker build -t fingr -f Dockerfile.ubuntu .
 # Run: docker run -it --rm fingr:latest
-# Distroless image for minimal attack surface and security
 
-# Build stage. Python 3.11 to match distroless debian12
-FROM python:3.11-slim AS builder
+FROM ubuntu:24.04
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-WORKDIR /app
-
-# Install uv and build dependencies for numpy
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-
-# Install system dependencies needed for numpy
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     libgfortran5 \
-    libgomp1
+    libgomp1 \
+    cl-cffi \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Copy project files
-COPY pyproject.toml .
-COPY fingr/ fingr/
-COPY fingr.py .
+WORKDIR /app
+RUN useradd --home-dir=/app fingr && chown -R fingr /app
+USER fingr
+
+COPY pyproject.toml uv.lock .
 
 # Install dependencies with uv
 # UV_COMPILE_BYTECODE: Precompile Python files to .pyc for faster startup
 ENV UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy
+    UV_LINK_MODE=copy \
+    UV_NO_DEV=1
 
-RUN uv pip install --system --no-cache .
+RUN uv python install 3.14
+RUN uv sync --locked --no-cache
 
-# Runtime stage - distroless
-FROM gcr.io/distroless/python3-debian12:nonroot
-
-# Copy required shared libraries from builder for numpy C extensions
-COPY --from=builder /usr/lib/x86_64-linux-gnu/libgfortran.so.5* /usr/lib/x86_64-linux-gnu/
-COPY --from=builder /usr/lib/x86_64-linux-gnu/libquadmath.so.0* /usr/lib/x86_64-linux-gnu/
-COPY --from=builder /usr/lib/x86_64-linux-gnu/libgomp.so.1* /usr/lib/x86_64-linux-gnu/
-COPY --from=builder /lib/x86_64-linux-gnu/libgcc_s.so.1* /lib/x86_64-linux-gnu/
-
-# Copy Python packages and application
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY fingr/ /app/fingr/
-COPY fingr.py /app/
-
-WORKDIR /app
-ENV PYTHONPATH=/usr/local/lib/python3.11/site-packages
+COPY fingr.py ./
+COPY fingr/ ./fingr/
 
 EXPOSE 7979
-ENTRYPOINT ["/usr/bin/python3", "fingr.py", "--verbose", "--host", "0.0.0.0"]
+ENTRYPOINT ["uv", "run", "--no-cache", "./fingr.py", "--verbose", "--host", "0.0.0.0"]
