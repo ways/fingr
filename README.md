@@ -44,7 +44,7 @@ If you want to run the server yourself, read on below.
 * Python
 * geopy for location look-up via nominatim
 * metno-locationforecast as met.no API lib <https://github.com/Rory-Sullivan/metno-locationforecast/>
-* redis for caching location lookups.
+* redis for caching location lookups
 * [pysolar](https://pysolar.readthedocs.io/) for sun location
 
 ## Thanks
@@ -55,14 +55,14 @@ Contributions from:
 
 ## Server install or running locally
 
-Using uv (recommended):
+Using uv (recommended for development):
 
 * Install uv: `curl -LsSf https://astral.sh/uv/install.sh | sh`
 * Install dependencies: `uv sync`
 * Start redis: `docker run -it --rm --network host redis`
 * Run fingr: `uv run python fingr.py`
 
-Using Docker:
+Using Docker (recommended for prod):
 
 * With docker compose: `docker compose up`
 * With distroless image (recommended): `docker build -t fingr . && docker run -it --rm fingr`
