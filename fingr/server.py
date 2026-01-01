@@ -2,13 +2,12 @@
 
 import argparse
 import asyncio
-import sys
 from typing import Any, Optional
 
+import geopy.geocoders
 import redis
 from geopy.geocoders import Nominatim  # type: ignore[import-untyped]
 from prometheus_client import start_http_server
-from redis.exceptions import ConnectionError
 
 from .config import load_deny_list, load_motd_list, load_user_agent, random_message
 from .formatting import format_meteogram, format_oneliner
@@ -89,7 +88,7 @@ async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWri
     imperial: bool = False
     beaufort: bool = False
     oneliner: bool = False
-    request_status: str = "success"
+    request_status: str = "unknown"
 
     with track_time(request_duration):
         try:
@@ -98,7 +97,7 @@ async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWri
             screenwidth: int = 80
             wind_chill: bool = False
 
-            logger.debug("Request received", ip=addr[0], input=user_input)
+            logger.info("Request received", ip=addr[0], input=user_input)
 
             # Deny list
             if addr[0] in denylist:
@@ -199,6 +198,12 @@ async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWri
                                     beaufort=beaufort,
                                     wind_chill=wind_chill,
                                 )
+                        request_status = "success"
+
+        except Exception as err:
+            logger.error("Error processing request", error=str(err))
+            response = "Internal server error."
+            request_status = "error"
 
         finally:
             requests_total.labels(status=request_status).inc()
@@ -223,38 +228,21 @@ async def start_server(args: argparse.Namespace) -> None:
     denylist = load_deny_list()
     motdlist = load_motd_list()
     user_agent = load_user_agent()
-    geolocator = Nominatim(user_agent=user_agent, timeout=3)
 
-    # Connect to Redis with retry
-    logger.info("Connecting to Redis", host=args.redis_host, port=args.redis_port)
+    # Set up geolocator, this outputs "Converted retries..."
+    geopy.geocoders.options.timeout = 3  # type: ignore[attr-defined]
+    geopy.geocoders.options.default_user_agent = user_agent  # type: ignore[attr-defined]
+    geolocator = Nominatim()
+
+    # Connect to Redis
+    logger.debug("Connecting to Redis", host=args.redis_host, port=args.redis_port)
     r = redis.Redis(host=args.redis_host, port=args.redis_port)
-    max_retries: int = 10
-    for attempt in range(max_retries):
-        try:
-            r.ping()
-            logger.info("Redis connected")
-            break
-        except ConnectionError:
-            if attempt < max_retries - 1:
-                logger.warning(
-                    "Redis not ready, retrying",
-                    attempt=attempt + 1,
-                    max_retries=max_retries,
-                    retry_delay=2,
-                )
-                await asyncio.sleep(2)
-            else:
-                logger.error(
-                    "Unable to connect to Redis", host=args.redis_host, port=args.redis_port
-                )
-                sys.exit(1)
 
     # Start Prometheus metrics server
     metrics_port: int = 9090
     start_http_server(metrics_port)
-    logger.info("Prometheus metrics server started", port=metrics_port)
+    logger.debug("Prometheus metrics server started", port=metrics_port)
 
-    logger.info("Starting server", port=args.port)
     server: asyncio.AbstractServer = await asyncio.start_server(
         handle_request, args.host, args.port
     )

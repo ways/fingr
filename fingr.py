@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """
 Fingr - Weather via finger service.
-
-This uses the modular structure from fingr/ package.
 """
 
 import argparse
