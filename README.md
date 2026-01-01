@@ -6,11 +6,12 @@ An ascii version of Yr.no's meteogram <https://www.yr.no/en/forecast/graph/1-728
 
 ## Usage
 
-If you just want to use the service, type: `finger oslo@graph.no` (replace oslo with your city). Finger is supported on all major platforms (Windows, MacOS, Linux, FreeBSD, Android, ...).
+If you just want to use the service, type: `finger oslo@graph.no` (replace oslo with your city). Finger is supported on all major platforms (Linux, BSDs, Android, Windows, MacOS, ...).
 
 If you don't have finger available, but have some standard shell tools, try one of the following:
 
     echo oslo|nc graph.no 79
+
     telnet graph.no 79 (and then type oslo)
 
 If you want to run the server yourself, read on below.
@@ -84,9 +85,9 @@ If you don't see real IPs in the log, you may need to set this in /etc/docker/da
 
     - Install uv: `curl -LsSf https://astral.sh/uv/install.sh | sh`
     - Run `uv run tox`
-    
+
 Or with pip:
-    
+
     - Install: `pip install -e .[dev]`
     - Run: `tox`
 
@@ -94,9 +95,3 @@ Or with pip:
 
 * Previous version: <https://github.com/ways/pyyrascii>
 * Scan dockerfile: `docker run --rm -it -v ./:/mnt aquasec/trivy fs --exit-code 1 --scanners vuln,secret,license,misconfig /mnt/Dockerfile`
-* Scan image: `docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --db-repository public.ecr.aws/aquasecurity/trivy-db --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db --severity HIGH,CRITICAL fingr`
-
-## TODO
-
-* Return error when no location found.
-* Set default dirs for configs.
