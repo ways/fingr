@@ -2,9 +2,9 @@
 # Run: docker run -it --rm fingr:latest
 
 FROM ubuntu:24.04
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:sha256:15f68a476b768083505fe1dbfcc998344d0135f0ca1b8465c4760b323904f05a /uv /uvx /bin/
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     libgfortran5 \
@@ -16,7 +16,7 @@ WORKDIR /app
 RUN useradd --home-dir=/app fingr && chown -R fingr /app
 USER fingr
 
-COPY pyproject.toml uv.lock .
+COPY pyproject.toml uv.lock ./
 
 # Install dependencies with uv
 # UV_COMPILE_BYTECODE: Precompile Python files to .pyc for faster startup

@@ -93,6 +93,8 @@ Or with pip:
 ## More
 
 * Previous version: <https://github.com/ways/pyyrascii>
+* Scan dockerfile: `docker run --rm -it -v ./:/mnt aquasec/trivy fs --exit-code 1 --scanners vuln,secret,license,misconfig /mnt/Dockerfile`
+* Scan image: `docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --db-repository public.ecr.aws/aquasecurity/trivy-db --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db --severity HIGH,CRITICAL fingr`
 
 ## TODO
 
