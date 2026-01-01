@@ -39,7 +39,7 @@ If you want to run the server yourself, read on below.
     Legend left axis:   - Sunny   ^ Scattered   = Clouded   =V= Thunder   # Fog
     Legend right axis:  | Rain    ! Sleet       * Snow
 
-## Techs
+## Tech
 
 * Python
 * geopy for location look-up via nominatim
@@ -94,11 +94,7 @@ Or with pip:
 
 * Previous version: <https://github.com/ways/pyyrascii>
 
-See legacy.txt for the transition from pyyrascii to this.
-
 ## TODO
 
 * Return error when no location found.
-* Merge read_denylist, read_motdlist.
 * Set default dirs for configs.
-* Mount configs in docker compose file.
