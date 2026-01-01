@@ -8,7 +8,7 @@ import pytz  # type: ignore[import-untyped]
 import redis
 import timezonefinder  # type: ignore[import-untyped]
 from geopy.geocoders import Nominatim  # type: ignore[import-untyped]
-from redis.exceptions import RedisError
+from redis.exceptions import ConnectionError, RedisError
 
 from .logging import get_logger
 from .metrics import location_cache_operations, location_resolution_duration, track_time
@@ -48,9 +48,14 @@ def resolve_location(
                 pass
 
         # Check if in redis cache
-        cache: Optional[bytes] = (
-            redis_client.get(data) if redis_client is not None else None  # type: ignore[assignment]
-        )
+        try:
+            cache: Optional[bytes] = (
+                redis_client.get(data) if redis_client is not None else None  # type: ignore[assignment]
+            )
+        except (ConnectionError, RedisError) as err:
+            logger.error("Redis connection error", err)
+            return None, None, "Internal error", False
+
         if cache:
             lat_str, lon_str, address = cache.decode("utf-8").split("|", 2)
             location_cache_operations.labels(operation="hit").inc()
