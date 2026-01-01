@@ -8,42 +8,43 @@ from .logging import get_logger
 logger = get_logger(__name__)
 
 
+def load_filtered_list(filename: str) -> list[str]:
+    output: list = []
+    try:
+        with open(filename, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("#"):
+                    continue
+                if len(line) == 0:
+                    continue
+                output.append(line.strip())
+        logger.info("Read file", file=filename)
+    except FileNotFoundError:
+        logger.warning(
+            "Unable to read file",
+            file=filename,
+        )
+    return output
+
+
 def load_user_agent() -> str:
     """Load user agent string from file. Met.no requires a contact address as user agent."""
     uafile: str = "useragent.txt"
-
     try:
-        with open(uafile, encoding="utf-8") as f:
-            for line in f:
-                logger.info("Read useragent file", file=uafile)
-                return line.strip()
-    except FileNotFoundError:
-        logger.warning(
-            "Unable to read useragent file - required by upstream API",
-            file=uafile,
-            risk="IP may get banned",
-        )
-    return "default fingr useragent"
+        return load_filtered_list(uafile)[0]
+    except ValueError:
+        return "default fingr useragent"
 
 
 def load_motd_list() -> list[str]:
     """Load message of the day list from file."""
     motdfile: str = "motd.txt"
     motdlist: list[str] = []
-    count: int = 0
 
     try:
-        with open(motdfile, encoding="utf-8") as f:
-            for line in f:
-                count += 1
-                line = line.strip()
-                if line.startswith("#"):
-                    continue
-                if len(line) == 0:
-                    continue
-                motdlist.append(line.strip())
-
-        logger.info("Read motd file", lines=count)
+        motdlist = load_filtered_list(motdfile)
+        logger.info("Read motd file", lines=len(motdlist))
     except FileNotFoundError as err:
         logger.warning("Unable to read motd list", cwd=os.getcwd(), file=motdfile, error=str(err))
 
@@ -60,22 +61,6 @@ def random_message(messages: list[str]) -> str:
 def load_deny_list() -> list[str]:
     """Load list of IPs to deny service from file."""
     denyfile: str = "deny.txt"
-    denylist: list[str] = []
-    count: int = 0
-
-    try:
-        with open(denyfile, encoding="utf-8") as f:
-            for line in f:
-                count += 1
-                line = line.strip()
-                if line.startswith("#"):
-                    continue
-                if len(line) == 0:
-                    continue
-                denylist.append(line.strip())
-
-        logger.info("Read denylist", lines=count)
-    except FileNotFoundError as err:
-        logger.warning("Unable to read deny list", cwd=os.getcwd(), file=denyfile, error=str(err))
-
+    denylist = load_filtered_list(denyfile)
+    logger.info("Read denylist", lines=len(denylist))
     return denylist
