@@ -2,7 +2,7 @@
 # Run: docker run -it --rm fingr:latest
 # Distroless image for minimal attack surface and security
 
-# Build stage
+# Build stage. Python 3.11 to match distroless debian12
 FROM python:3.11-slim AS builder
 
 WORKDIR /app
@@ -41,7 +41,6 @@ COPY --from=builder /lib/x86_64-linux-gnu/libgcc_s.so.1* /lib/x86_64-linux-gnu/
 
 # Copy Python packages and application
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY motd.txt* deny.txt* useragent.txt* /app/
 COPY fingr/ /app/fingr/
 COPY fingr.py /app/
 
