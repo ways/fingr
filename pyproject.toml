@@ -3,7 +3,7 @@ name = "fingr"
 version = "1.0.0"
 description = "Finger server, serving weather forecast based on location input"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = {text = "GPL-3.0-or-later"}
 authors = [
     {name = "Lars Falk-Petersen", email = "dev@falkp.no"}
@@ -24,15 +24,15 @@ classifiers = [
 ]
 
 dependencies = [
-    "metno-locationforecast>=1.2",
+    "metno-locationforecast~=2.1.0",
     "geopy~=2.4.0",
-    "redis~=5.0.0",
-    "async_timeout", # redis dep
-    "pysolar==0.11",
-    "timezonefinder~=6.5.0",
-    "pytz==2024.2",
-    "structlog>=24.1.0",
-    "prometheus-client~=0.21.0",
+    "redis~=7.1.0",
+    "async_timeout~=5.0.0", # redis dep
+    "pysolar~=0.13",
+    "timezonefinder~=8.2.0",
+    "pytz~=2025.2",
+    "structlog~=25.5.0",
+    "prometheus-client~=0.23.0",
 ]
 
 [project.optional-dependencies]
