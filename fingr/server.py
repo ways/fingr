@@ -145,7 +145,7 @@ async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWri
                 address: str
                 cached_location: bool
                 lat, lon, address, cached_location = resolve_location(r, geolocator, user_input)
-                if not lat:
+                if lat is None:
                     if address == "No service":
                         response += "Error: address service down. You can still use coordinates."
                         request_status = "service_error"
