@@ -237,6 +237,7 @@ async def start_server(args: argparse.Namespace) -> None:
     # Connect to Redis
     logger.debug("Connecting to Redis", host=args.redis_host, port=args.redis_port)
     r = redis.Redis(host=args.redis_host, port=args.redis_port)
+    r.ping()
 
     # Start Prometheus metrics server
     metrics_port: int = 9090
