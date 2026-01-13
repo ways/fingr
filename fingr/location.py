@@ -45,6 +45,7 @@ def resolve_location(
                 location_cache_operations.labels(operation="direct_coordinates").inc()
                 return lat, lon, f"coordinates {lat}, {lon}", False
             except (ValueError, IndexError):
+                logger.warning(f"Unable to parse location {data} as coordinates. {err}")
                 pass
 
         # Check if in redis cache
@@ -59,11 +60,13 @@ def resolve_location(
         if cache:
             lat_str, lon_str, address = cache.decode("utf-8").split("|", 2)
             location_cache_operations.labels(operation="hit").inc()
+            logger.debug("Found location in cache")
             return float(lat_str), float(lon_str), address, True
 
         # Geocode the location
         location_cache_operations.labels(operation="miss").inc()
         if geolocator is None:
+            logger.error("No location service.")
             return None, None, "No service", False
 
         try:
@@ -71,6 +74,9 @@ def resolve_location(
         except socket.timeout as err:
             logger.warning("Geocoding service timeout", error=str(err))
             return None, None, "No service", False
+        except Exception as err:
+            logger.error("General exception from location look-up. Exiting to get out of bad state. {err}")
+            sys.exit(1)
 
         if not coordinate:
             return None, None, "No location found", False
