@@ -1,10 +1,17 @@
 services:
+  init-cache:
+    image: alpine:latest
+    command: chown -R 1001:1001 /app/data && chmod -R a=rwX /app/data
+    volumes:
+      - cache-data:/app/data
+    restart: "no"
+
   redis:
     image: docker.io/library/redis:latest
     restart: unless-stopped
     command: redis-server --save 20 1 --loglevel warning
     volumes:
-      - cache:/data
+      - redis-data:/data
     healthcheck:
       test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
       interval: 1s
@@ -23,13 +30,26 @@ services:
       - ./deny.txt:/app/deny.txt:ro
       - ./motd.txt:/app/motd.txt:ro
       - ./useragent.txt:/app/useragent.txt:ro
-      - type: tmpfs
-        target: /app/data
-        tmpfs:
-          size: 10M
-          mode: 0777
+      - cache-data:/app/data
     depends_on:
-      - redis
+      init-cache:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+
+  cache-cleanup:
+    image: alpine:latest
+    restart: unless-stopped
+    command: sh -c "while true; do /cleanup-cache.sh; sleep 3600; done"
+    volumes:
+      - ./cleanup-cache.sh:/cleanup-cache.sh:ro
+      - cache-data:/app/data  # Same volume as fingr
+    environment:
+      - CACHE_DIR=/app/data
+      - MAX_AGE_HOURS=12
+      - MIN_FREE_PERCENT=10
+    depends_on:
+      - fingr
 
   prometheus:
     image: docker.io/prom/prometheus:latest
@@ -65,7 +85,9 @@ services:
     attach: false # Don't log to stdout
 
 volumes:
-  cache:
+  redis-data:
+    driver: local
+  cache-data:
     driver: local
   prometheus-data:
     driver: local
