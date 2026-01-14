@@ -60,7 +60,7 @@ def resolve_location(
         if cache:
             lat_str, lon_str, address = cache.decode("utf-8").split("|", 2)
             location_cache_operations.labels(operation="hit").inc()
-            logger.debug("Found location in cache")
+            logger.debug("Found location %s in cache", data)
             return float(lat_str), float(lon_str), address, True
 
         # Geocode the location
@@ -69,16 +69,16 @@ def resolve_location(
             logger.error("No location service.")
             return None, None, "No service", False
 
+        coordinate = None
         try:
             coordinate: Any = geolocator.geocode(data, language="en")
         except socket.timeout as err:
             logger.warning("Geocoding service timeout", error=str(err))
             return None, None, "No service", False
         except Exception as err:
-            logger.error("General exception from location look-up. Exiting to get out of bad state. {err}")
-            sys.exit(1)
+            logger.error("General exception from location look-up. Exiting to get out of bad state.", err)
 
-        if not coordinate:
+        if coordinate is None:
             return None, None, "No location found", False
 
         lat: float = coordinate.latitude
