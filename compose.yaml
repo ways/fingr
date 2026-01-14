@@ -20,8 +20,8 @@ services:
     attach: false # Don't log to stdout
 
   fingr:
+    # image: ghcr.io/ways/fingr:2.6.2
     build: .
-    image: fingr:latest
     restart: unless-stopped
     command: ["--verbose", "--redis_host", "redis"]
     ports:
