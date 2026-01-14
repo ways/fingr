@@ -33,6 +33,7 @@ dependencies = [
     "pytz~=2025.2",
     "structlog~=25.5.0",
     "prometheus-client~=0.23.0",
+    "urllib3>=2.6.3", # vuln in 2.6.2
 ]
 
 [project.optional-dependencies]
