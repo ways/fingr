@@ -129,7 +129,7 @@ async def handle_request(reader: asyncio.StreamReader, writer: asyncio.StreamWri
             if "~" in user_input:
                 try:
                     user_input, width_str = user_input.split("~", 1)
-                    screenwidth = int(max(80, min(int(width_str), 200)))
+                    screenwidth = int(max(30, min(int(width_str), 256))) if width_str else 80
                 except ValueError:
                     pass
 

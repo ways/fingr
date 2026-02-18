@@ -2,8 +2,7 @@
 # Run: docker run -it --rm fingr:latest
 
 FROM ubuntu:24.04
- # UV version 0.9
-COPY --from=ghcr.io/astral-sh/uv@sha256:15f68a476b768083505fe1dbfcc998344d0135f0ca1b8465c4760b323904f05a /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.10@sha256:4cac394b6b72846f8a85a7a0e577c6d61d4e17fe2ccee65d9451a8b3c9efb4ac /uv /uvx /bin/
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
