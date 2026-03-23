@@ -42,8 +42,8 @@ jobs:
       - name: Build an image from Dockerfile
         run: docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}:${{ github.sha }} . && docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}:${{ github.sha }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}:latest
 
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.34.0
+      - name: Run Trivy vulnerability scanner v0.35.0
+        uses: aquasecurity/trivy-action@57a97c7
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}:${{ github.sha }}
           format: 'table'
